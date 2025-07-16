@@ -23,7 +23,7 @@ function measureDnsResponseTime($domain) {
     return round(($end - $start) * 1000, 2); // in millisecondi
 }
 
-// Funzione migliorata per ottenere informazioni WHOIS
+// Funzione avanzata per ottenere informazioni WHOIS
 function getWhoisInfo($domain) {
     $info = array(
         'registrar' => 'Non disponibile',
@@ -31,44 +31,326 @@ function getWhoisInfo($domain) {
         'expires' => 'Non disponibile',
         'status' => 'Active',
         'owner' => 'Non disponibile',
-        'registrant_country' => 'Non disponibile'
+        'registrant_country' => 'Non disponibile',
+        'registrant_org' => 'Non disponibile',
+        'registrant_email' => 'Privacy Protected',
+        'nameservers' => array()
     );
     
-    // Tentativo di query WHOIS usando shell_exec se disponibile
-    if (function_exists('shell_exec') && !in_array('shell_exec', explode(',', ini_get('disable_functions')))) {
-        $whois_output = @shell_exec("whois " . escapeshellarg($domain) . " 2>&1");
+    // Metodo 1: Connessione diretta ai server WHOIS
+    $whois_data = getWhoisViaSocket($domain);
+    
+    // Metodo 2: Se il socket fallisce, prova con shell_exec
+    if (!$whois_data && function_exists('shell_exec') && !in_array('shell_exec', explode(',', ini_get('disable_functions')))) {
+        $whois_data = @shell_exec("whois " . escapeshellarg($domain) . " 2>&1");
+    }
+    
+    // Metodo 3: Se ancora nulla, prova con fsockopen a whois.internic.net
+    if (!$whois_data) {
+        $whois_data = getWhoisFromInternic($domain);
+    }
+    
+    // Metodo 4: Usa cURL per API WHOIS pubbliche (fallback)
+    if (!$whois_data) {
+        $whois_data = getWhoisViaCurl($domain);
+    }
+    
+    // Parse dei dati WHOIS
+    if ($whois_data) {
+        // Patterns multipli per diversi formati WHOIS
+        $patterns = array(
+            'registrar' => array(
+                '/Registrar:\s*(.+)/i',
+                '/Registrar Name:\s*(.+)/i',
+                '/Sponsoring Registrar:\s*(.+)/i',
+                '/Registrar Organization:\s*(.+)/i'
+            ),
+            'created' => array(
+                '/Creation Date:\s*(.+)/i',
+                '/Created:\s*(.+)/i',
+                '/Created On:\s*(.+)/i',
+                '/Domain Registration Date:\s*(.+)/i',
+                '/Registered on:\s*(.+)/i',
+                '/created:\s*(.+)/i',
+                '/Registration Time:\s*(.+)/i'
+            ),
+            'expires' => array(
+                '/Expiry Date:\s*(.+)/i',
+                '/Expires:\s*(.+)/i',
+                '/Expiration Date:\s*(.+)/i',
+                '/Registry Expiry Date:\s*(.+)/i',
+                '/Registrar Registration Expiration Date:\s*(.+)/i',
+                '/Expires On:\s*(.+)/i',
+                '/Expiration Time:\s*(.+)/i',
+                '/expire:\s*(.+)/i'
+            ),
+            'owner' => array(
+                '/Registrant Name:\s*(.+)/i',
+                '/Registrant:\s*(.+)/i',
+                '/Registrant Contact Name:\s*(.+)/i',
+                '/Owner Name:\s*(.+)/i',
+                '/Organization:\s*(.+)/i',
+                '/Registrant Organization:\s*(.+)/i'
+            ),
+            'registrant_org' => array(
+                '/Registrant Organization:\s*(.+)/i',
+                '/Registrant Organisation:\s*(.+)/i',
+                '/Organization:\s*(.+)/i',
+                '/Registrant Company:\s*(.+)/i',
+                '/Company Name:\s*(.+)/i'
+            ),
+            'registrant_country' => array(
+                '/Registrant Country:\s*(.+)/i',
+                '/Country:\s*(.+)/i',
+                '/Registrant Country\/Economy:\s*(.+)/i',
+                '/Registrant Country Code:\s*(.+)/i'
+            ),
+            'status' => array(
+                '/Domain Status:\s*(.+)/i',
+                '/Status:\s*(.+)/i',
+                '/domain status:\s*(.+)/i',
+                '/EPP Status:\s*(.+)/i'
+            )
+        );
         
-        if ($whois_output) {
-            // Parse registrar
-            if (preg_match('/Registrar:\s*(.+)/i', $whois_output, $matches)) {
-                $info['registrar'] = trim($matches[1]);
+        // Applica tutti i pattern
+        foreach ($patterns as $key => $pattern_list) {
+            foreach ($pattern_list as $pattern) {
+                if (preg_match($pattern, $whois_data, $matches)) {
+                    $value = trim($matches[1]);
+                    
+                    // Formatta le date
+                    if (in_array($key, array('created', 'expires')) && $value && $value != 'Not Available') {
+                        // Prova diversi formati di data
+                        $timestamp = strtotime($value);
+                        if (!$timestamp) {
+                            // Prova formato italiano
+                            $value = str_replace('/', '-', $value);
+                            $timestamp = strtotime($value);
+                        }
+                        if ($timestamp) {
+                            $value = date('d/m/Y', $timestamp);
+                        }
+                    }
+                    
+                    // Pulisci lo status
+                    if ($key == 'status') {
+                        $value = ucfirst(strtolower(explode(' ', $value)[0]));
+                        if (strpos(strtolower($value), 'ok') !== false || strpos(strtolower($value), 'active') !== false) {
+                            $value = 'Active';
+                        }
+                    }
+                    
+                    if ($value && $value != '' && !preg_match('/not available|redacted|privacy|data protected/i', $value)) {
+                        $info[$key] = $value;
+                    }
+                    break; // Esci dal loop se trovato
+                }
             }
-            
-            // Parse creation date
-            if (preg_match('/Creation Date:\s*(.+)|Created:\s*(.+)/i', $whois_output, $matches)) {
-                $date = trim($matches[1] ?: $matches[2]);
-                $info['created'] = date('d/m/Y', strtotime($date));
+        }
+        
+        // Cerca nameservers
+        if (preg_match_all('/Name Server:\s*(.+)|Nameserver:\s*(.+)|nserver:\s*(.+)|NS:\s*(.+)/i', $whois_data, $matches)) {
+            foreach ($matches[0] as $match) {
+                if (preg_match('/:\s*(.+)/', $match, $ns_match)) {
+                    $ns = trim(strtolower($ns_match[1]));
+                    if ($ns && !in_array($ns, $info['nameservers']) && strpos($ns, '.') !== false) {
+                        $info['nameservers'][] = $ns;
+                    }
+                }
             }
-            
-            // Parse expiry date
-            if (preg_match('/Expiry Date:\s*(.+)|Expires:\s*(.+)|Registry Expiry Date:\s*(.+)/i', $whois_output, $matches)) {
-                $date = trim($matches[1] ?: $matches[2] ?: $matches[3]);
-                $info['expires'] = date('d/m/Y', strtotime($date));
+        }
+        
+        // Se non troviamo il proprietario, cerca pattern italiani o altri
+        if ($info['owner'] == 'Non disponibile') {
+            // Pattern italiano
+            if (preg_match('/Registrante[\s\S]*?Nome:\s*(.+)/i', $whois_data, $matches)) {
+                $info['owner'] = trim($matches[1]);
             }
-            
-            // Parse registrant
-            if (preg_match('/Registrant Name:\s*(.+)|Registrant:\s*(.+)/i', $whois_output, $matches)) {
-                $info['owner'] = trim($matches[1] ?: $matches[2]);
+            // Pattern con organization come fallback
+            elseif ($info['registrant_org'] != 'Non disponibile') {
+                $info['owner'] = $info['registrant_org'];
             }
-            
-            // Parse country
-            if (preg_match('/Registrant Country:\s*(.+)/i', $whois_output, $matches)) {
-                $info['registrant_country'] = trim($matches[1]);
+        }
+        
+        // Gestione privacy/GDPR
+        if (preg_match('/REDACTED FOR PRIVACY|Data Protected|Privacy Protected|GDPR Masked|GDPR Redacted/i', $whois_data)) {
+            if ($info['owner'] == 'Non disponibile') {
+                $info['owner'] = 'Protetto da Privacy/GDPR';
+            }
+            if ($info['registrant_email'] == 'Privacy Protected') {
+                $info['registrant_email'] = 'Protetto da Privacy/GDPR';
+            }
+        }
+        
+        // Se abbiamo trovato pochi dati, potrebbe essere un dominio .it con formato diverso
+        if ($info['owner'] == 'Non disponibile' || $info['owner'] == 'Protetto da Privacy/GDPR') {
+            // Cerca sezione Organization per domini .it
+            if (preg_match('/Organization:\s*(.+)$/mi', $whois_data, $matches)) {
+                $org = trim($matches[1]);
+                if ($org && !preg_match('/not available|redacted|privacy/i', $org)) {
+                    $info['owner'] = $org;
+                }
             }
         }
     }
     
     return $info;
+}
+
+// Funzione per ottenere WHOIS via socket diretta
+function getWhoisViaSocket($domain) {
+    // Determina il server WHOIS basato sul TLD
+    $tld = strtolower(substr(strrchr($domain, '.'), 1));
+    
+    // Se è un dominio di secondo livello (es: .co.uk)
+    if (strpos($domain, '.co.uk') !== false) $tld = 'co.uk';
+    if (strpos($domain, '.org.uk') !== false) $tld = 'org.uk';
+    if (strpos($domain, '.com.au') !== false) $tld = 'com.au';
+    
+    $whois_servers = array(
+        'com' => 'whois.verisign-grs.com',
+        'net' => 'whois.verisign-grs.com',
+        'org' => 'whois.pir.org',
+        'info' => 'whois.afilias.net',
+        'biz' => 'whois.biz',
+        'it' => 'whois.nic.it',
+        'eu' => 'whois.eu',
+        'de' => 'whois.denic.de',
+        'fr' => 'whois.afnic.fr',
+        'uk' => 'whois.nic.uk',
+        'co.uk' => 'whois.nic.uk',
+        'org.uk' => 'whois.nic.uk',
+        'nl' => 'whois.domain-registry.nl',
+        'es' => 'whois.nic.es',
+        'ch' => 'whois.nic.ch',
+        'at' => 'whois.nic.at',
+        'be' => 'whois.dns.be',
+        'jp' => 'whois.jprs.jp',
+        'cn' => 'whois.cnnic.cn',
+        'au' => 'whois.auda.org.au',
+        'com.au' => 'whois.auda.org.au',
+        'ca' => 'whois.cira.ca',
+        'us' => 'whois.nic.us',
+        'mx' => 'whois.mx',
+        'br' => 'whois.registro.br',
+        'io' => 'whois.nic.io',
+        'me' => 'whois.nic.me',
+        'tv' => 'whois.tv',
+        'cc' => 'whois.nic.cc',
+        'ws' => 'whois.website.ws',
+        'mobi' => 'whois.dotmobiregistry.net',
+        'pro' => 'whois.registry.pro',
+        'edu' => 'whois.educause.edu',
+        'gov' => 'whois.nic.gov'
+    );
+    
+    $whois_server = isset($whois_servers[$tld]) ? $whois_servers[$tld] : 'whois.iana.org';
+    
+    // Timeout e tentativi
+    $timeout = 10;
+    $max_attempts = 2;
+    $attempt = 0;
+    $response = '';
+    
+    while ($attempt < $max_attempts && empty($response)) {
+        $attempt++;
+        $fp = @fsockopen($whois_server, 43, $errno, $errstr, $timeout);
+        
+        if ($fp) {
+            // Imposta timeout per la lettura
+            stream_set_timeout($fp, $timeout);
+            
+            // Alcuni server richiedono formati specifici
+            if ($whois_server == 'whois.denic.de') {
+                fputs($fp, "-T dn " . $domain . "\r\n");
+            } else {
+                fputs($fp, $domain . "\r\n");
+            }
+            
+            while (!feof($fp)) {
+                $response .= fgets($fp, 128);
+                $info = stream_get_meta_data($fp);
+                if ($info['timed_out']) {
+                    break;
+                }
+            }
+            fclose($fp);
+            
+            // Per alcuni TLD dobbiamo fare una seconda query
+            if (in_array($tld, array('com', 'net', 'tv', 'cc')) && preg_match('/Registrar WHOIS Server:\s*(.+)/i', $response, $matches)) {
+                $registrar_server = trim($matches[1]);
+                if ($registrar_server && $registrar_server != $whois_server && strpos($registrar_server, '.') !== false) {
+                    $fp2 = @fsockopen($registrar_server, 43, $errno, $errstr, $timeout);
+                    if ($fp2) {
+                        stream_set_timeout($fp2, $timeout);
+                        fputs($fp2, $domain . "\r\n");
+                        $response2 = '';
+                        while (!feof($fp2)) {
+                            $response2 .= fgets($fp2, 128);
+                            $info = stream_get_meta_data($fp2);
+                            if ($info['timed_out']) {
+                                break;
+                            }
+                        }
+                        fclose($fp2);
+                        if ($response2) {
+                            $response .= "\n" . $response2;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    return $response;
+}
+
+// Funzione fallback per Internic
+function getWhoisFromInternic($domain) {
+    $fp = @fsockopen('whois.internic.net', 43, $errno, $errstr, 10);
+    if (!$fp) return false;
+    
+    stream_set_timeout($fp, 10);
+    fputs($fp, "domain " . $domain . "\r\n");
+    $response = '';
+    while (!feof($fp)) {
+        $response .= fgets($fp, 128);
+        $info = stream_get_meta_data($fp);
+        if ($info['timed_out']) {
+            break;
+        }
+    }
+    fclose($fp);
+    
+    return $response;
+}
+
+// Funzione per ottenere WHOIS via cURL (usando servizi web)
+function getWhoisViaCurl($domain) {
+    if (!function_exists('curl_init')) {
+        return false;
+    }
+    
+    // Prova con who.is (servizio gratuito)
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, "https://who.is/whois/" . urlencode($domain));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+    
+    $html = curl_exec($ch);
+    curl_close($ch);
+    
+    if ($html) {
+        // Estrai i dati WHOIS dall'HTML
+        if (preg_match('/<pre[^>]*>(.+?)<\/pre>/si', $html, $matches)) {
+            return html_entity_decode(strip_tags($matches[1]));
+        }
+    }
+    
+    return false;
 }
 
 // Funzione per identificare servizi cloud dai record DNS
@@ -1086,6 +1368,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
             color: var(--secondary);
         }
         
+        .whois-value.text-danger {
+            color: var(--error);
+        }
+        
+        .whois-value.text-warning {
+            color: var(--warning);
+        }
+        
+        .whois-value small {
+            font-weight: 400;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        
+        .nameserver-item {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin: 2px;
+        }
+        
+        .whois-notice {
+            margin-top: 25px;
+            padding: 20px;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .whois-notice p {
+            margin: 0;
+            color: var(--info);
+        }
+        
         /* Cloud Services Section */
         .cloud-services {
             background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
@@ -1977,7 +2299,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
                 </div>
                 <div class="stat-card">
                     <div class="stat-icon">📅</div>
-                    <div class="stat-value"><?php echo $whois_info['expires']; ?></div>
+                    <div class="stat-value"><?php 
+                        if ($whois_info['expires'] != 'Non disponibile') {
+                            echo $whois_info['expires'];
+                        } else {
+                            echo 'N/D';
+                        }
+                    ?></div>
                     <div class="stat-label">Scadenza dominio</div>
                 </div>
             </section>
@@ -1995,6 +2323,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
                         <div class="whois-label">Intestatario</div>
                         <div class="whois-value"><?php echo htmlspecialchars($whois_info['owner']); ?></div>
                     </div>
+                    <?php if (isset($whois_info['registrant_org']) && $whois_info['registrant_org'] != 'Non disponibile'): ?>
+                    <div class="whois-item">
+                        <div class="whois-label">Organizzazione</div>
+                        <div class="whois-value"><?php echo htmlspecialchars($whois_info['registrant_org']); ?></div>
+                    </div>
+                    <?php endif; ?>
                     <div class="whois-item">
                         <div class="whois-label">Registrar</div>
                         <div class="whois-value"><?php echo htmlspecialchars($whois_info['registrar']); ?></div>
@@ -2005,17 +2339,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
                     </div>
                     <div class="whois-item">
                         <div class="whois-label">Data Scadenza</div>
-                        <div class="whois-value"><?php echo htmlspecialchars($whois_info['expires']); ?></div>
+                        <div class="whois-value <?php 
+                            if ($whois_info['expires'] != 'Non disponibile') {
+                                $exp_timestamp = strtotime(str_replace('/', '-', $whois_info['expires']));
+                                $days_until = floor(($exp_timestamp - time()) / 86400);
+                                if ($days_until < 30) echo 'text-danger';
+                                elseif ($days_until < 90) echo 'text-warning';
+                            }
+                        ?>"><?php 
+                            echo htmlspecialchars($whois_info['expires']);
+                            if ($whois_info['expires'] != 'Non disponibile') {
+                                $exp_timestamp = strtotime(str_replace('/', '-', $whois_info['expires']));
+                                $days_until = floor(($exp_timestamp - time()) / 86400);
+                                if ($days_until >= 0) {
+                                    echo " <small>(" . $days_until . " giorni)</small>";
+                                }
+                            }
+                        ?></div>
                     </div>
                     <div class="whois-item">
                         <div class="whois-label">Paese Registrante</div>
                         <div class="whois-value"><?php echo htmlspecialchars($whois_info['registrant_country']); ?></div>
                     </div>
                     <div class="whois-item">
-                        <div class="whois-label">Stato</div>
+                        <div class="whois-label">Stato Dominio</div>
                         <div class="whois-value"><?php echo htmlspecialchars($whois_info['status']); ?></div>
                     </div>
+                    <?php if (!empty($whois_info['nameservers'])): ?>
+                    <div class="whois-item" style="grid-column: 1 / -1;">
+                        <div class="whois-label">Nameservers Registrati</div>
+                        <div class="whois-value">
+                            <?php foreach ($whois_info['nameservers'] as $ns): ?>
+                                <span class="nameserver-item"><?php echo htmlspecialchars($ns); ?></span>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <?php endif; ?>
                 </div>
+                
+                <?php if ($whois_info['owner'] == 'Non disponibile' && $whois_info['registrar'] == 'Non disponibile'): ?>
+                <div class="whois-notice">
+                    <span class="message-icon">ℹ️</span>
+                    <p>I dati WHOIS potrebbero non essere disponibili a causa di limitazioni del server o privacy GDPR. 
+                    Per informazioni complete, consulta un servizio WHOIS dedicato.</p>
+                </div>
+                <?php endif; ?>
             </section>
             <?php endif; ?>
             
