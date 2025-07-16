@@ -4,6 +4,7 @@
  * @package ControlDomini
  * @author G Tech Group
  * @website https://controllodomini.it
+ * @version 4.0
  */
 
 (function() {
@@ -18,13 +19,15 @@
         animationDuration: 300,
         debounceDelay: 500,
         scrollOffset: 100,
+        notificationDuration: 3000,
         chartColors: {
             primary: '#5d8ecf',
             secondary: '#264573',
             success: '#10b981',
             error: '#ef4444',
             warning: '#f59e0b',
-            info: '#3b82f6'
+            info: '#3b82f6',
+            purple: '#8b5cf6'
         }
     };
 
@@ -36,7 +39,10 @@
         submitBtn: null,
         resultsSection: null,
         mobileMenuBtn: null,
-        navLinks: null
+        navLinks: null,
+        scrollTopBtn: null,
+        loadingOverlay: null,
+        toastContainer: null
     };
 
     // State management
@@ -45,7 +51,8 @@
         currentDomain: '',
         analysisResults: null,
         charts: {},
-        timers: {}
+        timers: {},
+        observers: {}
     };
 
     // ===================================
@@ -56,6 +63,8 @@
      * Inizializza l'applicazione
      */
     function init() {
+        console.log('🚀 Controllo Domini v4.0 - Initializing...');
+        
         // Cache elementi DOM
         cacheElements();
         
@@ -64,6 +73,9 @@
         
         // Inizializza componenti UI
         initializeComponents();
+        
+        // Setup link esempi
+        setupExampleLinks();
         
         // Inizializza AOS (Animate On Scroll)
         if (typeof AOS !== 'undefined') {
@@ -80,6 +92,11 @@
         
         // Check URL parameters
         checkUrlParameters();
+        
+        // Setup observers
+        setupIntersectionObservers();
+        
+        console.log('✅ Initialization complete');
     }
 
     /**
@@ -89,10 +106,23 @@
         elements.navbar = document.getElementById('navbar');
         elements.domainForm = document.getElementById('domainForm');
         elements.domainInput = document.getElementById('domain');
-        elements.submitBtn = document.getElementById('submitBtn');
+        elements.submitBtn = document.getElementById('analyzeBtn'); // Corretto ID
         elements.resultsSection = document.getElementById('results');
         elements.mobileMenuBtn = document.querySelector('.mobile-menu-btn');
         elements.navLinks = document.querySelector('.nav-links');
+        elements.scrollTopBtn = document.getElementById('scrollTopBtn');
+        elements.loadingOverlay = document.getElementById('loadingOverlay');
+        elements.toastContainer = document.getElementById('toastContainer');
+        
+        // Crea container toast se non esiste
+        if (!elements.toastContainer) {
+            elements.toastContainer = document.createElement('div');
+            elements.toastContainer.id = 'toastContainer';
+            elements.toastContainer.className = 'toast-container';
+            elements.toastContainer.setAttribute('aria-live', 'polite');
+            elements.toastContainer.setAttribute('aria-atomic', 'true');
+            document.body.appendChild(elements.toastContainer);
+        }
     }
 
     /**
@@ -100,7 +130,7 @@
      */
     function setupEventListeners() {
         // Navbar scroll effect
-        window.addEventListener('scroll', debounce(handleScroll, 10));
+        window.addEventListener('scroll', throttle(handleScroll, 10));
         
         // Form submission
         if (elements.domainForm) {
@@ -111,6 +141,7 @@
         if (elements.domainInput) {
             elements.domainInput.addEventListener('input', debounce(validateDomainInput, config.debounceDelay));
             elements.domainInput.addEventListener('paste', handlePaste);
+            elements.domainInput.addEventListener('keypress', handleEnterKey);
         }
         
         // Mobile menu
@@ -124,13 +155,47 @@
         });
         
         // Copy buttons
-        document.addEventListener('click', handleCopyButtons);
+        document.addEventListener('click', handleGlobalClick);
         
         // Keyboard shortcuts
         document.addEventListener('keydown', handleKeyboardShortcuts);
         
         // Window resize
         window.addEventListener('resize', debounce(handleResize, 250));
+        
+        // Scroll to top button
+        if (elements.scrollTopBtn) {
+            elements.scrollTopBtn.addEventListener('click', scrollToTop);
+        }
+        
+        // Tab navigation
+        setupTabNavigation();
+    }
+
+    /**
+     * Setup link esempi dominio
+     */
+    function setupExampleLinks() {
+        const exampleLinks = document.querySelectorAll('.example-link');
+        
+        exampleLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const domain = this.dataset.domain;
+                
+                if (domain && elements.domainInput) {
+                    elements.domainInput.value = domain;
+                    elements.domainInput.focus();
+                    validateDomainInput();
+                    
+                    // Animazione feedback
+                    elements.domainInput.classList.add('pulse');
+                    setTimeout(() => {
+                        elements.domainInput.classList.remove('pulse');
+                    }, 600);
+                }
+            });
+        });
     }
 
     // ===================================
@@ -142,22 +207,32 @@
      * @param {Event} e - Evento submit
      */
     async function handleFormSubmit(e) {
-        e.preventDefault();
+        // Non preveniamo il default perché il form fa POST normale
+        // e.preventDefault();
         
-        if (state.isLoading) return;
+        if (state.isLoading) {
+            e.preventDefault();
+            return;
+        }
         
         const domain = elements.domainInput.value.trim();
         
         // Validazione
         const validation = validateDomain(domain);
         if (!validation.isValid) {
+            e.preventDefault();
             showError(validation.error);
+            shakeElement(elements.domainInput);
             return;
         }
         
-        // Avvia analisi
+        // Imposta stato loading
         state.currentDomain = validation.cleanDomain;
-        await startAnalysis(validation.cleanDomain);
+        setLoadingState(true);
+        updateSubmitButton('loading');
+        
+        // Il form verrà inviato normalmente via POST
+        // La pagina si ricaricherà con i risultati
     }
 
     /**
@@ -175,26 +250,44 @@
             .replace(/^https?:\/\//, '')
             .replace(/^www\./, '')
             .replace(/\/.*$/, '')
+            .replace(/:\d+$/, '') // Rimuovi porta
             .trim()
             .toLowerCase();
         
+        // Controllo domini riservati
+        const reservedDomains = ['localhost', '127.0.0.1', '0.0.0.0'];
+        if (reservedDomains.includes(cleanDomain)) {
+            return { isValid: false, error: 'Questo dominio non può essere analizzato' };
+        }
+        
         // Validazione formato base
-        const domainRegex = /^[a-z0-9][a-z0-9-]{0,61}[a-z0-9]?\.[a-z]{2,}$/i;
+        const domainRegex = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/i;
         if (!domainRegex.test(cleanDomain)) {
             return { isValid: false, error: 'Formato dominio non valido' };
         }
         
+        // Controllo presenza TLD
+        if (cleanDomain.indexOf('.') === -1) {
+            return { isValid: false, error: 'Il dominio deve includere un\'estensione (es: .com, .it)' };
+        }
+        
         // Controllo lunghezza
         if (cleanDomain.length > 253) {
-            return { isValid: false, error: 'Dominio troppo lungo' };
+            return { isValid: false, error: 'Dominio troppo lungo (max 253 caratteri)' };
+        }
+        
+        // Controllo lunghezza labels
+        const labels = cleanDomain.split('.');
+        for (let label of labels) {
+            if (label.length > 63) {
+                return { isValid: false, error: 'Parte del dominio troppo lunga (max 63 caratteri)' };
+            }
         }
         
         // Controllo IDN (Internationalized Domain Names)
         if (/[^\x00-\x7F]/.test(cleanDomain)) {
-            // Converti in punycode se necessario
-            if (window.punycode) {
-                cleanDomain = punycode.toASCII(cleanDomain);
-            }
+            // Per ora accettiamo IDN ma avvisiamo
+            console.log('IDN domain detected:', cleanDomain);
         }
         
         return { isValid: true, cleanDomain: cleanDomain };
@@ -215,8 +308,9 @@
         
         if (validation.isValid) {
             showInputSuccess();
+            hideInputError();
         } else {
-            showInputError();
+            showInputError(validation.error);
         }
     }
 
@@ -237,78 +331,28 @@
             if (cleaned !== value) {
                 elements.domainInput.value = cleaned;
                 validateDomainInput();
+                
+                // Notifica pulizia
+                showNotification('URL pulito automaticamente', 'info');
             }
         }, 10);
     }
 
-    // ===================================
-    // 4. ANALISI DOMINIO
-    // ===================================
-    
     /**
-     * Avvia l'analisi del dominio
-     * @param {string} domain - Dominio da analizzare
+     * Gestisce tasto Enter nell'input
+     * @param {KeyboardEvent} e - Evento tastiera
      */
-    async function startAnalysis(domain) {
-        setLoadingState(true);
-        updateSubmitButton('loading');
-        
-        // Scorri ai risultati
-        if (elements.resultsSection) {
-            smoothScrollTo(elements.resultsSection);
-        }
-        
-        // Aggiorna URL
-        updateUrl(domain);
-        
-        try {
-            // Simula chiamata API (in produzione sostituire con vera API)
-            await simulateAnalysis(domain);
-            
-            // Mostra risultati
-            showResults();
-            
-            // Track analytics
-            trackEvent('analysis', 'complete', domain);
-            
-        } catch (error) {
-            console.error('Errore analisi:', error);
-            showError('Si è verificato un errore durante l\'analisi. Riprova.');
-            trackEvent('analysis', 'error', domain);
-        } finally {
-            setLoadingState(false);
-            updateSubmitButton('ready');
+    function handleEnterKey(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            if (elements.domainForm) {
+                elements.domainForm.dispatchEvent(new Event('submit', { bubbles: true }));
+            }
         }
     }
 
-    /**
-     * Simula analisi (placeholder per integrazione API)
-     * @param {string} domain - Dominio
-     */
-    async function simulateAnalysis(domain) {
-        // Simula delay API
-        await delay(2000);
-        
-        // In produzione, sostituire con:
-        // const response = await fetch(`${config.apiEndpoint}/analyze`, {
-        //     method: 'POST',
-        //     headers: { 'Content-Type': 'application/json' },
-        //     body: JSON.stringify({ domain })
-        // });
-        // state.analysisResults = await response.json();
-        
-        state.analysisResults = {
-            domain: domain,
-            timestamp: new Date().toISOString(),
-            dns: { /* risultati DNS */ },
-            whois: { /* risultati WHOIS */ },
-            blacklist: { /* risultati blacklist */ },
-            cloud: { /* servizi cloud rilevati */ }
-        };
-    }
-
     // ===================================
-    // 5. UI UPDATES E FEEDBACK
+    // 4. UI UPDATES E FEEDBACK
     // ===================================
     
     /**
@@ -316,12 +360,16 @@
      * @param {string} message - Messaggio errore
      */
     function showError(message) {
+        // Rimuovi alert esistenti
+        const existingAlerts = elements.domainForm.querySelectorAll('.alert');
+        existingAlerts.forEach(alert => alert.remove());
+        
         const alert = createAlert('error', message);
         elements.domainForm.appendChild(alert);
         
-        // Rimuovi dopo 5 secondi
+        // Auto-rimuovi dopo 5 secondi
         setTimeout(() => {
-            alert.style.opacity = '0';
+            alert.classList.add('fade-out');
             setTimeout(() => alert.remove(), 300);
         }, 5000);
     }
@@ -335,10 +383,19 @@
     function createAlert(type, message) {
         const alert = document.createElement('div');
         alert.className = `alert alert-${type}`;
+        alert.setAttribute('role', 'alert');
         alert.innerHTML = `
             <span class="alert-icon">${getAlertIcon(type)}</span>
-            <span class="alert-content">${message}</span>
+            <span class="alert-content">${escapeHtml(message)}</span>
+            <button class="alert-close" aria-label="Chiudi">&times;</button>
         `;
+        
+        // Chiudi al click
+        alert.querySelector('.alert-close').addEventListener('click', () => {
+            alert.classList.add('fade-out');
+            setTimeout(() => alert.remove(), 300);
+        });
+        
         return alert;
     }
 
@@ -363,14 +420,37 @@
     function showInputSuccess() {
         elements.domainInput.classList.remove('error');
         elements.domainInput.classList.add('success');
+        
+        // Rimuovi messaggio errore se presente
+        hideInputError();
     }
 
     /**
      * Mostra feedback errore su input
+     * @param {string} message - Messaggio errore
      */
-    function showInputError() {
+    function showInputError(message) {
         elements.domainInput.classList.remove('success');
         elements.domainInput.classList.add('error');
+        
+        // Mostra messaggio errore sotto l'input
+        let errorEl = elements.domainInput.parentElement.querySelector('.input-error');
+        if (!errorEl) {
+            errorEl = document.createElement('div');
+            errorEl.className = 'input-error';
+            elements.domainInput.parentElement.appendChild(errorEl);
+        }
+        errorEl.textContent = message;
+    }
+
+    /**
+     * Nasconde errore input
+     */
+    function hideInputError() {
+        const errorEl = elements.domainInput.parentElement.querySelector('.input-error');
+        if (errorEl) {
+            errorEl.remove();
+        }
     }
 
     /**
@@ -378,6 +458,7 @@
      */
     function removeInputFeedback() {
         elements.domainInput.classList.remove('success', 'error');
+        hideInputError();
     }
 
     /**
@@ -387,17 +468,27 @@
     function updateSubmitButton(state) {
         if (!elements.submitBtn) return;
         
+        const btnText = elements.submitBtn.querySelector('.btn-text');
+        const btnIcon = elements.submitBtn.querySelector('.btn-icon');
+        
         switch (state) {
             case 'loading':
                 elements.submitBtn.disabled = true;
-                elements.submitBtn.innerHTML = '<span>Analisi in corso</span><span class="loading"></span>';
+                elements.submitBtn.classList.add('loading');
+                if (btnText) btnText.textContent = 'Analisi in corso...';
+                if (btnIcon) btnIcon.innerHTML = '<span class="spinner"></span>';
                 break;
+                
             case 'ready':
                 elements.submitBtn.disabled = false;
-                elements.submitBtn.innerHTML = '<span>Avvia Analisi Completa</span>';
+                elements.submitBtn.classList.remove('loading');
+                if (btnText) btnText.textContent = 'Analizza';
+                if (btnIcon) btnIcon.textContent = '→';
                 break;
+                
             case 'disabled':
                 elements.submitBtn.disabled = true;
+                elements.submitBtn.classList.remove('loading');
                 break;
         }
     }
@@ -409,18 +500,63 @@
     function setLoadingState(isLoading) {
         state.isLoading = isLoading;
         document.body.classList.toggle('is-loading', isLoading);
+        
+        if (elements.loadingOverlay) {
+            elements.loadingOverlay.classList.toggle('active', isLoading);
+        }
+    }
+
+    /**
+     * Mostra notifica temporanea
+     * @param {string} message - Messaggio
+     * @param {string} type - Tipo (success, error, warning, info)
+     */
+    function showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.setAttribute('role', 'status');
+        notification.setAttribute('aria-live', 'polite');
+        
+        const icon = getAlertIcon(type);
+        notification.innerHTML = `
+            <span class="notification-icon">${icon}</span>
+            <span class="notification-text">${escapeHtml(message)}</span>
+        `;
+        
+        elements.toastContainer.appendChild(notification);
+        
+        // Trigger animazione entrata
+        requestAnimationFrame(() => {
+            notification.classList.add('show');
+        });
+        
+        // Auto-rimuovi dopo il tempo configurato
+        setTimeout(() => {
+            notification.classList.remove('show');
+            notification.classList.add('hide');
+            setTimeout(() => notification.remove(), 300);
+        }, config.notificationDuration);
+    }
+
+    /**
+     * Shake animation per elementi
+     * @param {HTMLElement} element - Elemento da animare
+     */
+    function shakeElement(element) {
+        element.classList.add('shake');
+        setTimeout(() => {
+            element.classList.remove('shake');
+        }, 600);
     }
 
     // ===================================
-    // 6. GESTIONE RISULTATI
+    // 5. GESTIONE RISULTATI
     // ===================================
     
     /**
-     * Mostra risultati analisi
+     * Inizializza visualizzazione risultati
      */
-    function showResults() {
-        if (!state.analysisResults || !elements.resultsSection) return;
-        
+    function initializeResults() {
         // Animazione numeri statistiche
         animateStatistics();
         
@@ -432,6 +568,12 @@
         
         // Setup copia risultati
         setupCopyFeatures();
+        
+        // Inizializza tabs DNS
+        initializeDnsTabs();
+        
+        // Setup export buttons
+        setupExportButtons();
     }
 
     /**
@@ -441,10 +583,14 @@
         const statValues = document.querySelectorAll('.stat-value[data-value]');
         
         statValues.forEach(element => {
-            const finalValue = parseInt(element.dataset.value);
+            const finalValue = parseFloat(element.dataset.value);
             if (isNaN(finalValue)) return;
             
-            animateValue(element, 0, finalValue, 1000);
+            // Determina se è un numero intero o decimale
+            const isInteger = finalValue % 1 === 0;
+            const decimals = isInteger ? 0 : 1;
+            
+            animateValue(element, 0, finalValue, 1500, decimals);
         });
     }
 
@@ -454,126 +600,110 @@
      * @param {number} start - Valore iniziale
      * @param {number} end - Valore finale
      * @param {number} duration - Durata animazione (ms)
+     * @param {number} decimals - Numero decimali
      */
-    function animateValue(element, start, end, duration) {
+    function animateValue(element, start, end, duration, decimals = 0) {
         const startTimestamp = performance.now();
         
         const step = (timestamp) => {
             const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-            const value = Math.floor(progress * (end - start) + start);
             
-            element.textContent = value;
+            // Easing function (ease-out-cubic)
+            const easeProgress = 1 - Math.pow(1 - progress, 3);
+            
+            const value = start + (end - start) * easeProgress;
+            
+            element.textContent = value.toFixed(decimals);
             
             if (progress < 1) {
                 requestAnimationFrame(step);
+            } else {
+                element.textContent = end.toFixed(decimals);
             }
         };
         
         requestAnimationFrame(step);
     }
 
+    /**
+     * Inizializza tabs DNS
+     */
+    function initializeDnsTabs() {
+        const tabButtons = document.querySelectorAll('.tab-btn');
+        const tabPanes = document.querySelectorAll('.tab-pane');
+        
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const targetTab = button.dataset.tab;
+                
+                // Rimuovi active da tutti
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                tabPanes.forEach(pane => pane.classList.remove('active'));
+                
+                // Attiva corrente
+                button.classList.add('active');
+                const targetPane = document.querySelector(`[data-tab-content="${targetTab}"]`);
+                if (targetPane) {
+                    targetPane.classList.add('active');
+                }
+                
+                // Track evento
+                trackEvent('dns_tabs', 'switch', targetTab);
+            });
+        });
+    }
+
     // ===================================
-    // 7. GRAFICI E VISUALIZZAZIONI
+    // 6. GRAFICI E VISUALIZZAZIONI
     // ===================================
     
     /**
      * Inizializza grafici
      */
     function initializeCharts() {
-        // Grafico reputazione
-        const reputationChart = document.getElementById('reputationChart');
-        if (reputationChart) {
-            createReputationChart(reputationChart);
-        }
+        // Health score circles
+        const healthCircles = document.querySelectorAll('.health-score-circle[data-score]');
+        healthCircles.forEach(initializeHealthCircle);
         
-        // Grafico DNS records
-        const dnsChart = document.getElementById('dnsChart');
-        if (dnsChart) {
-            createDnsChart(dnsChart);
-        }
+        // Gauge reputazione
+        const reputationGauges = document.querySelectorAll('.gauge-circle[style*="--score"]');
+        reputationGauges.forEach(animateGauge);
         
-        // Health score gauge
-        const healthGauge = document.getElementById('healthGauge');
-        if (healthGauge) {
-            createHealthGauge(healthGauge);
-        }
+        // Progress bars
+        initializeProgressBars();
     }
 
     /**
-     * Crea grafico reputazione (usando Chart.js se disponibile)
-     * @param {HTMLElement} canvas - Elemento canvas
+     * Inizializza cerchio health score
+     * @param {HTMLElement} container - Container SVG
      */
-    function createReputationChart(canvas) {
-        if (typeof Chart === 'undefined') return;
-        
-        const ctx = canvas.getContext('2d');
-        
-        state.charts.reputation = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Pulito', 'Blacklist'],
-                datasets: [{
-                    data: [95, 5], // Dati esempio
-                    backgroundColor: [
-                        config.chartColors.success,
-                        config.chartColors.error
-                    ],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom'
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                return context.label + ': ' + context.parsed + '%';
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    }
-
-    /**
-     * Crea health gauge SVG
-     * @param {HTMLElement} container - Container elemento
-     */
-    function createHealthGauge(container) {
+    function initializeHealthCircle(container) {
         const score = parseInt(container.dataset.score) || 0;
-        const radius = 54;
-        const circumference = 2 * Math.PI * radius;
-        const offset = circumference - (score / 100) * circumference;
+        const circle = container.querySelector('circle:last-child');
         
-        const svg = `
-            <svg class="health-score-circle" viewBox="0 0 120 120">
-                <circle class="health-score-bg" cx="60" cy="60" r="${radius}" />
-                <circle class="health-score-progress" 
-                        cx="60" cy="60" r="${radius}"
-                        stroke-dasharray="${circumference}"
-                        stroke-dashoffset="${offset}" />
-            </svg>
-            <div class="health-score-text">${score}</div>
-        `;
-        
-        container.innerHTML = svg;
-        
-        // Anima il cerchio
-        setTimeout(() => {
-            const progressCircle = container.querySelector('.health-score-progress');
-            if (progressCircle) {
-                progressCircle.style.strokeDashoffset = offset;
-            }
-        }, 100);
+        if (circle) {
+            // Anima il cerchio dopo un breve delay
+            setTimeout(() => {
+                circle.style.strokeDashoffset = 'var(--offset)';
+            }, 100);
+        }
+    }
+
+    /**
+     * Anima gauge circolare
+     * @param {HTMLElement} gauge - Elemento gauge
+     */
+    function animateGauge(gauge) {
+        const progressCircle = gauge.querySelector('circle:nth-child(2)');
+        if (progressCircle) {
+            setTimeout(() => {
+                progressCircle.style.transition = 'stroke-dashoffset 1.5s ease-out';
+            }, 100);
+        }
     }
 
     // ===================================
-    // 8. NAVIGAZIONE E SCROLL
+    // 7. NAVIGAZIONE E SCROLL
     // ===================================
     
     /**
@@ -584,13 +714,20 @@
         
         // Navbar scroll effect
         if (elements.navbar) {
-            elements.navbar.classList.toggle('scrolled', scrollY > 50);
+            if (scrollY > 50) {
+                elements.navbar.classList.add('scrolled');
+            } else {
+                elements.navbar.classList.remove('scrolled');
+            }
         }
         
         // Show/hide scroll to top button
-        const scrollTopBtn = document.getElementById('scrollTopBtn');
-        if (scrollTopBtn) {
-            scrollTopBtn.classList.toggle('visible', scrollY > 500);
+        if (elements.scrollTopBtn) {
+            if (scrollY > 500) {
+                elements.scrollTopBtn.classList.add('visible');
+            } else {
+                elements.scrollTopBtn.classList.remove('visible');
+            }
         }
     }
 
@@ -599,15 +736,27 @@
      * @param {Event} e - Evento click
      */
     function handleSmoothScroll(e) {
+        const href = this.getAttribute('href');
+        
+        // Ignora link esterni
+        if (!href || !href.startsWith('#')) return;
+        
         e.preventDefault();
         
-        const targetId = this.getAttribute('href');
-        if (!targetId || targetId === '#') return;
+        if (href === '#') {
+            scrollToTop();
+            return;
+        }
         
-        const target = document.querySelector(targetId);
+        const target = document.querySelector(href);
         if (!target) return;
         
         smoothScrollTo(target);
+        
+        // Chiudi menu mobile se aperto
+        if (elements.navLinks && elements.navLinks.classList.contains('active')) {
+            toggleMobileMenu();
+        }
     }
 
     /**
@@ -616,7 +765,7 @@
      */
     function smoothScrollTo(target) {
         const offset = config.scrollOffset;
-        const targetPosition = target.offsetTop - offset;
+        const targetPosition = target.getBoundingClientRect().top + window.scrollY - offset;
         
         window.scrollTo({
             top: targetPosition,
@@ -624,26 +773,49 @@
         });
     }
 
+    /**
+     * Scroll to top
+     */
+    function scrollToTop() {
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+    }
+
     // ===================================
-    // 9. MOBILE MENU
+    // 8. MOBILE MENU
     // ===================================
     
     /**
      * Toggle mobile menu
      */
     function toggleMobileMenu() {
-        if (!elements.navLinks) return;
+        if (!elements.navLinks || !elements.mobileMenuBtn) return;
         
-        elements.navLinks.classList.toggle('active');
-        elements.mobileMenuBtn.classList.toggle('active');
+        const isOpen = elements.navLinks.classList.contains('active');
+        
+        if (isOpen) {
+            // Chiudi menu
+            elements.navLinks.classList.remove('active');
+            elements.mobileMenuBtn.classList.remove('active');
+            elements.mobileMenuBtn.setAttribute('aria-expanded', 'false');
+            document.body.classList.remove('menu-open');
+        } else {
+            // Apri menu
+            elements.navLinks.classList.add('active');
+            elements.mobileMenuBtn.classList.add('active');
+            elements.mobileMenuBtn.setAttribute('aria-expanded', 'true');
+            document.body.classList.add('menu-open');
+        }
         
         // Anima icona hamburger
         const icon = elements.mobileMenuBtn.querySelector('span') || elements.mobileMenuBtn;
-        icon.textContent = elements.navLinks.classList.contains('active') ? '✕' : '☰';
+        icon.textContent = isOpen ? '☰' : '✕';
     }
 
     // ===================================
-    // 10. FEATURES AVANZATE
+    // 9. FEATURES AVANZATE
     // ===================================
     
     /**
@@ -656,12 +828,19 @@
             const text = element.dataset.tooltip;
             if (!text) return;
             
+            // Verifica se tooltip già esiste
+            if (element.querySelector('.tooltip-text')) return;
+            
             const tooltip = document.createElement('span');
             tooltip.className = 'tooltip-text';
             tooltip.textContent = text;
+            tooltip.setAttribute('role', 'tooltip');
             
             element.classList.add('tooltip');
             element.appendChild(tooltip);
+            
+            // Accessibilità
+            element.setAttribute('aria-describedby', `tooltip-${Math.random().toString(36).substr(2, 9)}`);
         });
     }
 
@@ -670,55 +849,97 @@
      */
     function setupCopyFeatures() {
         // Aggiungi pulsanti copia a elementi copiabili
-        const copyables = document.querySelectorAll('.copyable');
+        const copyables = document.querySelectorAll('.copyable:not(.has-copy-btn)');
         
         copyables.forEach(element => {
+            element.classList.add('has-copy-btn');
+            
             const copyBtn = document.createElement('button');
             copyBtn.className = 'copy-btn';
             copyBtn.innerHTML = '📋';
             copyBtn.title = 'Copia';
+            copyBtn.setAttribute('aria-label', 'Copia negli appunti');
             
             element.appendChild(copyBtn);
         });
     }
 
     /**
+     * Gestisce click globali
+     * @param {Event} e - Evento click
+     */
+    function handleGlobalClick(e) {
+        // Gestione pulsanti copia
+        if (e.target.classList.contains('copy-btn')) {
+            handleCopyButton(e);
+        }
+        
+        // Chiudi mobile menu se click fuori
+        if (elements.navLinks && elements.navLinks.classList.contains('active')) {
+            if (!e.target.closest('.nav-links') && !e.target.closest('.mobile-menu-btn')) {
+                toggleMobileMenu();
+            }
+        }
+    }
+
+    /**
      * Gestisce click su pulsanti copia
      * @param {Event} e - Evento click
      */
-    function handleCopyButtons(e) {
-        if (!e.target.classList.contains('copy-btn')) return;
+    function handleCopyButton(e) {
+        e.preventDefault();
+        e.stopPropagation();
         
-        const parent = e.target.parentElement;
-        const text = parent.textContent.replace('📋', '').trim();
+        const button = e.target;
+        const parent = button.parentElement;
         
-        copyToClipboard(text);
+        // Estrai testo da copiare
+        let textToCopy = '';
         
-        // Feedback visivo
-        e.target.innerHTML = '✅';
-        setTimeout(() => {
-            e.target.innerHTML = '📋';
-        }, 2000);
+        if (parent.classList.contains('copyable')) {
+            // Copia tutto il testo dell'elemento
+            textToCopy = parent.textContent.replace('📋', '').trim();
+        } else {
+            // Cerca un elemento specifico da copiare
+            const copyTarget = parent.querySelector('.copy-target');
+            textToCopy = copyTarget ? copyTarget.textContent.trim() : parent.textContent.trim();
+        }
+        
+        copyToClipboard(textToCopy, button);
     }
 
     /**
      * Copia testo negli appunti
      * @param {string} text - Testo da copiare
+     * @param {HTMLElement} button - Pulsante copia (per feedback)
      */
-    async function copyToClipboard(text) {
+    async function copyToClipboard(text, button) {
         try {
             if (navigator.clipboard && window.isSecureContext) {
                 await navigator.clipboard.writeText(text);
             } else {
-                // Fallback per browser older
+                // Fallback per browser older o contesti non sicuri
                 const textarea = document.createElement('textarea');
                 textarea.value = text;
                 textarea.style.position = 'fixed';
                 textarea.style.opacity = '0';
+                textarea.style.pointerEvents = 'none';
                 document.body.appendChild(textarea);
                 textarea.select();
                 document.execCommand('copy');
                 document.body.removeChild(textarea);
+            }
+            
+            // Feedback visivo
+            if (button) {
+                const originalContent = button.innerHTML;
+                button.innerHTML = '✅';
+                button.classList.add('success');
+                
+                setTimeout(() => {
+                    button.innerHTML = originalContent;
+                    button.classList.remove('success');
+                }, 2000);
             }
             
             showNotification('Copiato negli appunti!', 'success');
@@ -729,29 +950,26 @@
     }
 
     /**
-     * Mostra notifica temporanea
-     * @param {string} message - Messaggio
-     * @param {string} type - Tipo (success, error)
+     * Setup pulsanti export
      */
-    function showNotification(message, type = 'info') {
-        const notification = document.createElement('div');
-        notification.className = `notification notification-${type}`;
-        notification.textContent = message;
+    function setupExportButtons() {
+        // Export DNS
+        const exportDnsBtn = document.querySelector('[onclick="exportDNS()"]');
+        if (exportDnsBtn) {
+            exportDnsBtn.removeAttribute('onclick');
+            exportDnsBtn.addEventListener('click', () => exportResults('dns'));
+        }
         
-        document.body.appendChild(notification);
-        
-        // Trigger animazione
-        setTimeout(() => notification.classList.add('show'), 10);
-        
-        // Rimuovi dopo 3 secondi
-        setTimeout(() => {
-            notification.classList.remove('show');
-            setTimeout(() => notification.remove(), 300);
-        }, 3000);
+        // Copy all DNS
+        const copyAllDnsBtn = document.querySelector('[onclick="copyAllDNS()"]');
+        if (copyAllDnsBtn) {
+            copyAllDnsBtn.removeAttribute('onclick');
+            copyAllDnsBtn.addEventListener('click', copyAllDnsRecords);
+        }
     }
 
     // ===================================
-    // 11. KEYBOARD SHORTCUTS
+    // 10. KEYBOARD SHORTCUTS
     // ===================================
     
     /**
@@ -765,26 +983,159 @@
             if (elements.domainInput) {
                 elements.domainInput.focus();
                 elements.domainInput.select();
+                
+                // Scroll to input se non visibile
+                const inputRect = elements.domainInput.getBoundingClientRect();
+                if (inputRect.top < 0 || inputRect.bottom > window.innerHeight) {
+                    smoothScrollTo(elements.domainInput.closest('.form-section'));
+                }
             }
         }
         
-        // Escape: Chiudi mobile menu
+        // Escape: Chiudi mobile menu o modal
         if (e.key === 'Escape') {
+            // Chiudi mobile menu
             if (elements.navLinks && elements.navLinks.classList.contains('active')) {
                 toggleMobileMenu();
             }
+            
+            // Chiudi modal attivo
+            const activeModal = document.querySelector('.modal-overlay.active');
+            if (activeModal) {
+                closeModal(activeModal);
+            }
         }
         
-        // Ctrl/Cmd + Enter: Submit form
-        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-            if (elements.domainForm && document.activeElement === elements.domainInput) {
-                elements.domainForm.dispatchEvent(new Event('submit'));
-            }
+        // Ctrl/Cmd + S: Salva/Export risultati
+        if ((e.ctrlKey || e.metaKey) && e.key === 's' && state.currentDomain) {
+            e.preventDefault();
+            exportResults('json');
         }
     }
 
     // ===================================
-    // 12. URL E HISTORY MANAGEMENT
+    // 11. TAB NAVIGATION
+    // ===================================
+    
+    /**
+     * Setup navigazione tabs con tastiera
+     */
+    function setupTabNavigation() {
+        const tabLists = document.querySelectorAll('[role="tablist"]');
+        
+        tabLists.forEach(tabList => {
+            const tabs = tabList.querySelectorAll('[role="tab"]');
+            
+            tabs.forEach((tab, index) => {
+                tab.addEventListener('keydown', (e) => {
+                    let newIndex;
+                    
+                    switch (e.key) {
+                        case 'ArrowLeft':
+                        case 'ArrowUp':
+                            e.preventDefault();
+                            newIndex = index - 1;
+                            if (newIndex < 0) newIndex = tabs.length - 1;
+                            tabs[newIndex].focus();
+                            tabs[newIndex].click();
+                            break;
+                            
+                        case 'ArrowRight':
+                        case 'ArrowDown':
+                            e.preventDefault();
+                            newIndex = index + 1;
+                            if (newIndex >= tabs.length) newIndex = 0;
+                            tabs[newIndex].focus();
+                            tabs[newIndex].click();
+                            break;
+                            
+                        case 'Home':
+                            e.preventDefault();
+                            tabs[0].focus();
+                            tabs[0].click();
+                            break;
+                            
+                        case 'End':
+                            e.preventDefault();
+                            tabs[tabs.length - 1].focus();
+                            tabs[tabs.length - 1].click();
+                            break;
+                    }
+                });
+            });
+        });
+    }
+
+    // ===================================
+    // 12. INTERSECTION OBSERVERS
+    // ===================================
+    
+    /**
+     * Setup Intersection Observers per animazioni
+     */
+    function setupIntersectionObservers() {
+        // Observer per animazioni fade-in
+        const fadeObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('fade-in-visible');
+                    fadeObserver.unobserve(entry.target);
+                }
+            });
+        }, {
+            threshold: 0.1,
+            rootMargin: '50px'
+        });
+        
+        // Osserva elementi con classe fade-in
+        document.querySelectorAll('.fade-in').forEach(el => {
+            fadeObserver.observe(el);
+        });
+        
+        // Observer per progress bars
+        const progressObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const progressBar = entry.target.querySelector('.progress-bar-fill');
+                    if (progressBar && progressBar.dataset.percent) {
+                        progressBar.style.width = progressBar.dataset.percent + '%';
+                    }
+                    progressObserver.unobserve(entry.target);
+                }
+            });
+        }, {
+            threshold: 0.5
+        });
+        
+        // Osserva progress bars
+        document.querySelectorAll('.progress-bar').forEach(bar => {
+            progressObserver.observe(bar);
+        });
+        
+        // Salva observers per cleanup
+        state.observers.fade = fadeObserver;
+        state.observers.progress = progressObserver;
+    }
+
+    /**
+     * Inizializza progress bars
+     */
+    function initializeProgressBars() {
+        const progressBars = document.querySelectorAll('.progress-bar');
+        
+        progressBars.forEach(bar => {
+            const fill = bar.querySelector('.progress-bar-fill');
+            if (fill && fill.dataset.percent) {
+                // Reset iniziale
+                fill.style.width = '0%';
+                
+                // Animazione sarà triggerata dall'Intersection Observer
+            }
+        });
+    }
+
+    // ===================================
+    // 13. URL E HISTORY MANAGEMENT
     // ===================================
     
     /**
@@ -795,7 +1146,8 @@
         const url = new URL(window.location);
         url.searchParams.set('domain', domain);
         
-        window.history.pushState({ domain }, '', url);
+        // Non aggiorniamo l'URL durante il POST del form
+        // window.history.pushState({ domain }, '', url);
     }
 
     /**
@@ -807,33 +1159,23 @@
         
         if (domain && elements.domainInput) {
             elements.domainInput.value = domain;
-            // Auto-avvia analisi se richiesto
-            if (params.get('analyze') === 'true') {
-                setTimeout(() => {
-                    elements.domainForm.dispatchEvent(new Event('submit'));
-                }, 500);
+            
+            // Se ci sono risultati nella pagina, inizializzali
+            if (elements.resultsSection) {
+                initializeResults();
             }
         }
     }
 
-    /**
-     * Gestisce browser back/forward
-     */
-    window.addEventListener('popstate', (e) => {
-        if (e.state && e.state.domain && elements.domainInput) {
-            elements.domainInput.value = e.state.domain;
-        }
-    });
-
     // ===================================
-    // 13. ANALYTICS E TRACKING
+    // 14. ANALYTICS E TRACKING
     // ===================================
     
     /**
      * Setup analytics
      */
     function setupAnalytics() {
-        // Google Analytics
+        // Google Analytics 4
         if (typeof gtag !== 'undefined') {
             gtag('config', 'GA_MEASUREMENT_ID', {
                 page_title: 'Controllo Domini',
@@ -841,12 +1183,20 @@
             });
         }
         
-        // Track page timing
+        // Track performance metrics
         if ('performance' in window) {
             window.addEventListener('load', () => {
                 setTimeout(() => {
                     const perfData = window.performance.timing;
                     const pageLoadTime = perfData.loadEventEnd - perfData.navigationStart;
+                    const domReadyTime = perfData.domContentLoadedEventEnd - perfData.navigationStart;
+                    const renderTime = perfData.domComplete - perfData.domLoading;
+                    
+                    console.log('Performance metrics:', {
+                        pageLoad: pageLoadTime + 'ms',
+                        domReady: domReadyTime + 'ms',
+                        render: renderTime + 'ms'
+                    });
                     
                     trackEvent('performance', 'page_load', 'time', pageLoadTime);
                 }, 0);
@@ -870,14 +1220,205 @@
             });
         }
         
-        // Console log in dev
-        if (window.location.hostname === 'localhost') {
-            console.log('Track Event:', { category, action, label, value });
+        // Debug in development
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            console.log('📊 Track Event:', { category, action, label, value });
         }
     }
 
     // ===================================
-    // 14. UTILITIES
+    // 15. EXPORT E CONDIVISIONE
+    // ===================================
+    
+    /**
+     * Esporta risultati analisi
+     * @param {string} type - Tipo export (dns, json, csv, pdf)
+     */
+    function exportResults(type) {
+        if (!state.currentDomain && elements.domainInput) {
+            state.currentDomain = elements.domainInput.value;
+        }
+        
+        if (!state.currentDomain) {
+            showNotification('Nessun risultato da esportare', 'error');
+            return;
+        }
+        
+        switch (type) {
+            case 'dns':
+                exportDnsRecords();
+                break;
+            case 'json':
+                exportAsJSON();
+                break;
+            case 'csv':
+                exportAsCSV();
+                break;
+            case 'pdf':
+                exportAsPDF();
+                break;
+            default:
+                console.error('Formato export non supportato:', type);
+        }
+        
+        trackEvent('export', type, state.currentDomain);
+    }
+
+    /**
+     * Esporta record DNS
+     */
+    function exportDnsRecords() {
+        const dnsData = collectDnsData();
+        const content = formatDnsExport(dnsData);
+        
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        
+        downloadFile(url, `dns-records-${state.currentDomain}-${formatDate()}.txt`);
+    }
+
+    /**
+     * Copia tutti i record DNS
+     */
+    function copyAllDnsRecords() {
+        const dnsData = collectDnsData();
+        const content = formatDnsExport(dnsData);
+        
+        copyToClipboard(content);
+    }
+
+    /**
+     * Raccoglie dati DNS dalle tabelle
+     * @returns {Object} Dati DNS
+     */
+    function collectDnsData() {
+        const dnsData = {};
+        const tables = document.querySelectorAll('.dns-table');
+        
+        tables.forEach(table => {
+            const tabPane = table.closest('.tab-pane');
+            if (!tabPane) return;
+            
+            const recordType = tabPane.dataset.tabContent;
+            const rows = table.querySelectorAll('tbody tr');
+            
+            dnsData[recordType] = [];
+            
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                const record = {};
+                
+                cells.forEach((cell, index) => {
+                    const header = table.querySelectorAll('th')[index];
+                    if (header) {
+                        record[header.textContent.trim()] = cell.textContent.trim();
+                    }
+                });
+                
+                dnsData[recordType].push(record);
+            });
+        });
+        
+        return dnsData;
+    }
+
+    /**
+     * Formatta export DNS
+     * @param {Object} dnsData - Dati DNS
+     * @returns {string} Testo formattato
+     */
+    function formatDnsExport(dnsData) {
+        let content = `DNS Records for ${state.currentDomain}\n`;
+        content += `Generated: ${new Date().toLocaleString()}\n`;
+        content += '='.repeat(50) + '\n\n';
+        
+        Object.entries(dnsData).forEach(([type, records]) => {
+            if (records.length > 0) {
+                content += `${type} Records (${records.length})\n`;
+                content += '-'.repeat(30) + '\n';
+                
+                records.forEach(record => {
+                    Object.entries(record).forEach(([key, value]) => {
+                        content += `${key}: ${value}\n`;
+                    });
+                    content += '\n';
+                });
+                
+                content += '\n';
+            }
+        });
+        
+        return content;
+    }
+
+    /**
+     * Esporta come JSON
+     */
+    function exportAsJSON() {
+        const data = {
+            domain: state.currentDomain,
+            timestamp: new Date().toISOString(),
+            dns: collectDnsData(),
+            whois: collectWhoisData(),
+            blacklist: collectBlacklistData(),
+            health: collectHealthData()
+        };
+        
+        const json = JSON.stringify(data, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        
+        downloadFile(url, `controllo-domini-${state.currentDomain}-${formatDate()}.json`);
+    }
+
+    /**
+     * Scarica file
+     * @param {string} url - URL file
+     * @param {string} filename - Nome file
+     */
+    function downloadFile(url, filename) {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        // Cleanup
+        setTimeout(() => URL.revokeObjectURL(url), 100);
+    }
+
+    /**
+     * Condividi risultati
+     */
+    window.shareResults = async function() {
+        const url = window.location.href;
+        const text = `Analisi dominio ${state.currentDomain} - Controllo Domini`;
+        
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: 'Controllo Domini',
+                    text: text,
+                    url: url
+                });
+                trackEvent('share', 'native', state.currentDomain);
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    console.error('Errore condivisione:', err);
+                }
+            }
+        } else {
+            // Fallback: copia link
+            copyToClipboard(url);
+            showNotification('Link copiato negli appunti!', 'success');
+            trackEvent('share', 'copy_link', state.currentDomain);
+        }
+    };
+
+    // ===================================
+    // 16. UTILITY FUNCTIONS
     // ===================================
     
     /**
@@ -916,12 +1457,28 @@
     }
 
     /**
-     * Delay promise
-     * @param {number} ms - Millisecondi
-     * @returns {Promise} Promise che si risolve dopo il delay
+     * Escape HTML
+     * @param {string} text - Testo da escapare
+     * @returns {string} Testo escapato
      */
-    function delay(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
+    function escapeHtml(text) {
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text.replace(/[&<>"']/g, m => map[m]);
+    }
+
+    /**
+     * Formatta data per filename
+     * @returns {string} Data formattata
+     */
+    function formatDate() {
+        const now = new Date();
+        return now.toISOString().split('T')[0];
     }
 
     /**
@@ -933,7 +1490,7 @@
             toggleMobileMenu();
         }
         
-        // Ridisegna grafici
+        // Ridisegna grafici se presenti
         Object.values(state.charts).forEach(chart => {
             if (chart && typeof chart.resize === 'function') {
                 chart.resize();
@@ -942,41 +1499,19 @@
     }
 
     /**
-     * Inizializza componenti UI avanzati
+     * Inizializza componenti UI
      */
     function initializeComponents() {
-        // Progress bars
-        initProgressBars();
-        
         // Accordion
         initAccordions();
         
-        // Tabs
-        initTabs();
-        
         // Modals
         initModals();
-    }
-
-    /**
-     * Inizializza progress bars animate
-     */
-    function initProgressBars() {
-        const progressBars = document.querySelectorAll('.progress-bar');
         
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const fill = entry.target.querySelector('.progress-bar-fill');
-                    if (fill && fill.dataset.percent) {
-                        fill.style.width = fill.dataset.percent + '%';
-                    }
-                    observer.unobserve(entry.target);
-                }
-            });
-        }, { threshold: 0.5 });
-        
-        progressBars.forEach(bar => observer.observe(bar));
+        // Lazy loading images
+        if ('IntersectionObserver' in window) {
+            initLazyLoading();
+        }
     }
 
     /**
@@ -993,46 +1528,22 @@
                 // Chiudi altri accordion nello stesso gruppo
                 const group = header.closest('.accordion-group');
                 if (group) {
-                    group.querySelectorAll('.accordion-header').forEach(h => {
-                        h.classList.remove('active');
-                        h.nextElementSibling.style.maxHeight = null;
+                    group.querySelectorAll('.accordion-header.active').forEach(h => {
+                        if (h !== header) {
+                            h.classList.remove('active');
+                            h.nextElementSibling.style.maxHeight = null;
+                        }
                     });
                 }
                 
                 // Toggle corrente
+                header.classList.toggle('active');
+                
                 if (!isOpen) {
-                    header.classList.add('active');
                     content.style.maxHeight = content.scrollHeight + 'px';
+                } else {
+                    content.style.maxHeight = null;
                 }
-            });
-        });
-    }
-
-    /**
-     * Inizializza tabs
-     */
-    function initTabs() {
-        const tabContainers = document.querySelectorAll('.tabs');
-        
-        tabContainers.forEach(container => {
-            const tabs = container.querySelectorAll('.tab');
-            const contents = container.querySelectorAll('.tab-content');
-            
-            tabs.forEach((tab, index) => {
-                tab.addEventListener('click', () => {
-                    // Rimuovi active da tutti
-                    tabs.forEach(t => t.classList.remove('active'));
-                    contents.forEach(c => c.classList.remove('active'));
-                    
-                    // Attiva corrente
-                    tab.classList.add('active');
-                    if (contents[index]) {
-                        contents[index].classList.add('active');
-                    }
-                    
-                    // Track event
-                    trackEvent('ui', 'tab_switch', tab.textContent);
-                });
             });
         });
     }
@@ -1073,6 +1584,14 @@
     function openModal(modal) {
         modal.classList.add('active');
         document.body.style.overflow = 'hidden';
+        
+        // Focus trap
+        const focusableElements = modal.querySelectorAll(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusableElements.length) {
+            focusableElements[0].focus();
+        }
     }
 
     /**
@@ -1084,88 +1603,92 @@
         document.body.style.overflow = '';
     }
 
-    // ===================================
-    // 15. EXPORT E CONDIVISIONE
-    // ===================================
-    
     /**
-     * Esporta risultati analisi
-     * @param {string} format - Formato export (json, csv, pdf)
+     * Inizializza lazy loading
      */
-    window.exportResults = function(format) {
-        if (!state.analysisResults) {
-            showNotification('Nessun risultato da esportare', 'error');
-            return;
-        }
+    function initLazyLoading() {
+        const lazyImages = document.querySelectorAll('img[data-src]');
         
-        switch (format) {
-            case 'json':
-                exportAsJSON();
-                break;
-            case 'csv':
-                exportAsCSV();
-                break;
-            case 'pdf':
-                exportAsPDF();
-                break;
-            default:
-                console.error('Formato export non supportato:', format);
-        }
+        const imageObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    img.src = img.dataset.src;
+                    img.removeAttribute('data-src');
+                    img.classList.add('loaded');
+                    observer.unobserve(img);
+                }
+            });
+        }, {
+            rootMargin: '50px'
+        });
         
-        trackEvent('export', format, state.currentDomain);
-    };
-
-    /**
-     * Esporta come JSON
-     */
-    function exportAsJSON() {
-        const data = JSON.stringify(state.analysisResults, null, 2);
-        const blob = new Blob([data], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        
-        downloadFile(url, `controllo-domini-${state.currentDomain}-${Date.now()}.json`);
+        lazyImages.forEach(img => imageObserver.observe(img));
     }
 
     /**
-     * Scarica file
-     * @param {string} url - URL file
-     * @param {string} filename - Nome file
+     * Funzioni helper per raccolta dati
      */
-    function downloadFile(url, filename) {
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    }
-
-    /**
-     * Condividi risultati
-     */
-    window.shareResults = async function() {
-        const url = window.location.href;
-        const text = `Analisi dominio ${state.currentDomain} - Controllo Domini`;
+    function collectWhoisData() {
+        // Raccoglie dati WHOIS dalla pagina
+        const whoisSection = document.querySelector('.whois-section');
+        if (!whoisSection) return {};
         
-        if (navigator.share) {
-            try {
-                await navigator.share({
-                    title: 'Controllo Domini',
-                    text: text,
-                    url: url
-                });
-                trackEvent('share', 'native', state.currentDomain);
-            } catch (err) {
-                console.log('Errore condivisione:', err);
+        const data = {};
+        whoisSection.querySelectorAll('.whois-item').forEach(item => {
+            const label = item.querySelector('.whois-label')?.textContent;
+            const value = item.querySelector('.whois-value')?.textContent;
+            if (label && value) {
+                data[label] = value;
             }
-        } else {
-            // Fallback: copia link
-            copyToClipboard(url);
-            showNotification('Link copiato negli appunti!', 'success');
-            trackEvent('share', 'copy_link', state.currentDomain);
-        }
-    };
+        });
+        
+        return data;
+    }
+
+    function collectBlacklistData() {
+        // Raccoglie dati blacklist dalla pagina
+        const blacklistSection = document.querySelector('.blacklist-section');
+        if (!blacklistSection) return {};
+        
+        return {
+            score: blacklistSection.querySelector('.gauge-value')?.textContent,
+            status: blacklistSection.querySelector('.reputation-status')?.textContent,
+            listings: blacklistSection.querySelector('.blacklist-stat-value')?.textContent
+        };
+    }
+
+    function collectHealthData() {
+        // Raccoglie dati health dalla pagina
+        const healthSection = document.querySelector('.health-overview');
+        if (!healthSection) return {};
+        
+        return {
+            score: healthSection.querySelector('.score-value')?.textContent,
+            status: healthSection.querySelector('.health-status')?.textContent
+        };
+    }
+
+    /**
+     * Cleanup function
+     */
+    function cleanup() {
+        // Rimuovi event listeners
+        window.removeEventListener('scroll', handleScroll);
+        window.removeEventListener('resize', handleResize);
+        
+        // Disconnetti observers
+        Object.values(state.observers).forEach(observer => {
+            if (observer && observer.disconnect) {
+                observer.disconnect();
+            }
+        });
+        
+        // Clear timers
+        Object.values(state.timers).forEach(timer => {
+            clearTimeout(timer);
+        });
+    }
 
     // ===================================
     // INIZIALIZZAZIONE
@@ -1178,13 +1701,19 @@
         init();
     }
     
-    // Esponi alcune funzioni globalmente per debugging
+    // Cleanup on page unload
+    window.addEventListener('unload', cleanup);
+    
+    // Esponi API pubblica
     window.ControlDomini = {
+        version: '4.0',
         state,
         config,
         trackEvent,
         exportResults,
-        shareResults
+        shareResults,
+        showNotification,
+        copyToClipboard
     };
 
 })();
