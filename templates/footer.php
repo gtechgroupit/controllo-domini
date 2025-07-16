@@ -12,6 +12,9 @@
 if (!defined('ABSPATH')) {
     exit;
 }
+
+// Versione fallback per assets
+$assets_version = defined('APP_VERSION') ? APP_VERSION : '4.0';
 ?>
 
         </div><!-- .container -->
@@ -138,7 +141,7 @@ if (!defined('ABSPATH')) {
                         <p>&copy; <?php echo date('Y'); ?> G Tech Group. Tutti i diritti riservati.</p>
                         <p class="footer-version">
                             <small>
-                                Controllo Domini v<?php echo APP_VERSION; ?> | 
+                                Controllo Domini v<?php echo defined('APP_VERSION') ? APP_VERSION : '4.0'; ?> | 
                                 <a href="/status" rel="nofollow">Status</a> | 
                                 <a href="/changelog">Changelog</a>
                             </small>
@@ -194,8 +197,8 @@ if (!defined('ABSPATH')) {
     <!-- Modal Container -->
     <div id="modalContainer"></div>
     
-    <!-- Scripts -->
-    <script src="/assets/js/main.js?v=<?php echo filemtime(ABSPATH . 'assets/js/main.js'); ?>"></script>
+    <!-- Scripts - PERCORSO SEMPLIFICATO -->
+    <script src="/assets/js/main.js?v=<?php echo $assets_version; ?>"></script>
     
     <!-- AOS Animation Library -->
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
@@ -212,7 +215,9 @@ if (!defined('ABSPATH')) {
         if (typeof ClipboardJS !== 'undefined') {
             const clipboard = new ClipboardJS('.copy-btn');
             clipboard.on('success', function(e) {
-                showNotification('Copiato negli appunti!', 'success');
+                if (typeof showNotification === 'function') {
+                    showNotification('Copiato negli appunti!', 'success');
+                }
                 e.clearSelection();
             });
         }
@@ -248,7 +253,9 @@ if (!defined('ABSPATH')) {
                     throw new Error(data.message || 'Errore durante l\'iscrizione');
                 }
             } catch (error) {
-                showNotification(error.message, 'error');
+                if (typeof showNotification === 'function') {
+                    showNotification(error.message, 'error');
+                }
                 btn.disabled = false;
                 btn.innerHTML = '<span class="btn-text">Iscriviti</span><span class="btn-icon">→</span>';
             }
@@ -401,10 +408,10 @@ if (!defined('ABSPATH')) {
     <?php endif; ?>
     
     <!-- Development/Debug Mode -->
-    <?php if (DEBUG_MODE): ?>
+    <?php if (defined('DEBUG_MODE') && DEBUG_MODE): ?>
     <script>
         console.log('🚀 Controllo Domini - Debug Mode Active');
-        console.log('Version:', '<?php echo APP_VERSION; ?>');
+        console.log('Version:', '<?php echo defined('APP_VERSION') ? APP_VERSION : '4.0'; ?>');
         console.log('Page Load Time:', performance.now() + 'ms');
     </script>
     <?php endif; ?>
