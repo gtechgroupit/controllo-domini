@@ -307,6 +307,7 @@ function getWhoisInfo($domain, $debug = false) {
     
     return $info;
 }
+}
 
 // Funzione per ottenere WHOIS via socket diretta
 function getWhoisViaSocket($domain) {
