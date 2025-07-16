@@ -273,6 +273,7 @@ function getWhoisInfo($domain, $debug = false) {
             }
         }
     }
+    }
     
     // Se non abbiamo nameserver dal WHOIS, prova a prenderli dai record DNS NS
     if (empty($info['nameservers'])) {
@@ -551,7 +552,7 @@ function identifyCloudServices($dns_results) {
 }
 
 // Funzione per analizzare la salute del dominio
-function analyzeDomainHealth($dns_results, $cloud_services) {
+function analyzeDomainHealth($dns_results, $cloud_services, $blacklist_results = null) {
     $health = array(
         'score' => 0,
         'issues' => array(),
@@ -639,8 +640,148 @@ function analyzeDomainHealth($dns_results, $cloud_services) {
         $health['positives'][] = "✓ Record CAA configurati per sicurezza SSL";
     }
     
+    // Controlla blacklist
+    if ($blacklist_results && isset($blacklist_results['listed']) && $blacklist_results['listed'] > 0) {
+        $penalty = min(20, $blacklist_results['listed'] * 5);
+        $current_score -= $penalty;
+        $health['issues'][] = "IP presente in " . $blacklist_results['listed'] . " blacklist";
+        $health['suggestions'][] = "Rimuovi gli IP dalle blacklist per migliorare la reputazione";
+    } elseif ($blacklist_results && $blacklist_results['listed'] == 0) {
+        $health['positives'][] = "✓ Nessuna presenza in blacklist";
+    }
+    
     $health['score'] = max(0, $current_score);
     return $health;
+}
+
+// Funzione per controllare le blacklist
+function checkBlacklists($domain) {
+    $blacklists = array(
+        'reputation' => array(),
+        'issues' => array(),
+        'clean' => array(),
+        'checked' => 0,
+        'listed' => 0
+    );
+    
+    // Lista delle principali blacklist DNS
+    $dnsbl_servers = array(
+        'zen.spamhaus.org' => 'Spamhaus ZEN',
+        'bl.spamcop.net' => 'SpamCop',
+        'b.barracudacentral.org' => 'Barracuda',
+        'dnsbl.sorbs.net' => 'SORBS',
+        'spam.dnsbl.sorbs.net' => 'SORBS Spam',
+        'cbl.abuseat.org' => 'CBL Abuseat',
+        'dnsbl-1.uceprotect.net' => 'UCEPROTECT Level 1',
+        'psbl.surriel.com' => 'PSBL',
+        'db.wpbl.info' => 'WPBL',
+        'ix.dnsbl.manitu.net' => 'Manitu',
+        'combined.rbl.msrbl.net' => 'MSRBL',
+        'multi.spamhaus.org' => 'Spamhaus Multi',
+        'bogons.cymru.com' => 'Team Cymru Bogons',
+        'tor.dan.me.uk' => 'TOR Exit Nodes',
+        'rbl.spamlab.com' => 'SpamLab',
+        'noptr.spamrats.com' => 'SpamRats NoPtr',
+        'spam.spamrats.com' => 'SpamRats Spam',
+        'virbl.dnsbl.bit.nl' => 'VirBL',
+        'wormrbl.imp.ch' => 'Worm RBL',
+        'spamguard.leadmon.net' => 'SpamGuard'
+    );
+    
+    // Ottieni gli IP del dominio
+    $ips = array();
+    
+    // Record A (IPv4)
+    $a_records = @dns_get_record($domain, DNS_A);
+    if ($a_records) {
+        foreach ($a_records as $record) {
+            if (isset($record['ip'])) {
+                $ips[] = $record['ip'];
+            }
+        }
+    }
+    
+    // Se non ci sono IP diretti, prova con www
+    if (empty($ips)) {
+        $www_records = @dns_get_record('www.' . $domain, DNS_A);
+        if ($www_records) {
+            foreach ($www_records as $record) {
+                if (isset($record['ip'])) {
+                    $ips[] = $record['ip'];
+                }
+            }
+        }
+    }
+    
+    // Controlla ogni IP contro le blacklist
+    foreach ($ips as $ip) {
+        $reverse_ip = implode('.', array_reverse(explode('.', $ip)));
+        
+        foreach ($dnsbl_servers as $dnsbl => $name) {
+            $blacklists['checked']++;
+            $query = $reverse_ip . '.' . $dnsbl;
+            
+            // Controlla se l'IP è listato
+            $result = @gethostbyname($query);
+            
+            if ($result && $result != $query) {
+                // IP è listato in questa blacklist
+                $blacklists['listed']++;
+                $blacklists['issues'][] = array(
+                    'ip' => $ip,
+                    'blacklist' => $name,
+                    'dnsbl' => $dnsbl,
+                    'status' => 'listed'
+                );
+            } else {
+                $blacklists['clean'][] = array(
+                    'ip' => $ip,
+                    'blacklist' => $name
+                );
+            }
+        }
+    }
+    
+    // Calcola la reputazione
+    if ($blacklists['checked'] > 0) {
+        $clean_percentage = (($blacklists['checked'] - $blacklists['listed']) / $blacklists['checked']) * 100;
+        
+        if ($clean_percentage == 100) {
+            $blacklists['reputation'] = array(
+                'score' => 100,
+                'status' => 'Eccellente',
+                'color' => 'success'
+            );
+        } elseif ($clean_percentage >= 95) {
+            $blacklists['reputation'] = array(
+                'score' => round($clean_percentage),
+                'status' => 'Buona',
+                'color' => 'info'
+            );
+        } elseif ($clean_percentage >= 80) {
+            $blacklists['reputation'] = array(
+                'score' => round($clean_percentage),
+                'status' => 'Attenzione',
+                'color' => 'warning'
+            );
+        } else {
+            $blacklists['reputation'] = array(
+                'score' => round($clean_percentage),
+                'status' => 'Critica',
+                'color' => 'error'
+            );
+        }
+    } else {
+        $blacklists['reputation'] = array(
+            'score' => 0,
+            'status' => 'Non verificabile',
+            'color' => 'gray'
+        );
+    }
+    
+    $blacklists['ips_checked'] = $ips;
+    
+    return $blacklists;
 }
 
 // Funzione per formattare i risultati DNS con più dettagli
@@ -945,6 +1086,7 @@ $response_time = 0;
 $domain_health = null;
 $whois_info = null;
 $cloud_services = null;
+$blacklist_results = null;
 $debug_mode = isset($_GET['debug']) || isset($_POST['debug']) ? true : false; // Aggiungi ?debug alla URL per debug
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
@@ -975,8 +1117,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
                 // Identifica servizi cloud
                 $cloud_services = identifyCloudServices($dns_results['records']);
                 
+                // Controlla blacklist
+                $blacklist_results = checkBlacklists($domain);
+                
                 // Analizza la salute del dominio
-                $domain_health = analyzeDomainHealth($dns_results['records'], $cloud_services);
+                $domain_health = analyzeDomainHealth($dns_results['records'], $cloud_services, $blacklist_results);
                 
                 // Ottieni info whois
                 $whois_info = getWhoisInfo($domain, $debug_mode);
@@ -1531,6 +1676,200 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
             color: var(--info);
         }
         
+        /* Blacklist Section */
+        .blacklist-section {
+            background: white;
+            padding: 40px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            margin-bottom: 40px;
+        }
+        
+        .blacklist-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .blacklist-title {
+            font-family: 'Poppins', sans-serif;
+            font-size: 2rem;
+            color: var(--secondary);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .reputation-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px 25px;
+            border-radius: var(--radius-sm);
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 1.2rem;
+        }
+        
+        .reputation-badge.success {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.2) 100%);
+            color: var(--success);
+            border: 2px solid var(--success);
+        }
+        
+        .reputation-badge.info {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.2) 100%);
+            color: var(--info);
+            border: 2px solid var(--info);
+        }
+        
+        .reputation-badge.warning {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(245, 158, 11, 0.2) 100%);
+            color: var(--warning);
+            border: 2px solid var(--warning);
+        }
+        
+        .reputation-badge.error {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.2) 100%);
+            color: var(--error);
+            border: 2px solid var(--error);
+        }
+        
+        .reputation-badge.gray {
+            background: linear-gradient(135deg, rgba(107, 114, 128, 0.1) 0%, rgba(107, 114, 128, 0.2) 100%);
+            color: var(--gray-dark);
+            border: 2px solid var(--gray-dark);
+        }
+        
+        .blacklist-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .blacklist-stat {
+            text-align: center;
+            padding: 20px;
+            background: var(--gray-light);
+            border-radius: var(--radius-sm);
+        }
+        
+        .blacklist-stat-value {
+            font-family: 'Poppins', sans-serif;
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--secondary);
+        }
+        
+        .blacklist-stat-label {
+            color: var(--gray-dark);
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+        
+        .blacklist-results {
+            margin-top: 30px;
+        }
+        
+        .blacklist-issues {
+            background: rgba(239, 68, 68, 0.05);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: var(--radius-sm);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .blacklist-issues h4 {
+            color: var(--error);
+            font-family: 'Poppins', sans-serif;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .blacklist-item {
+            background: white;
+            padding: 15px;
+            border-radius: var(--radius-xs);
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .blacklist-item-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .blacklist-item-ip {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-weight: 600;
+            color: var(--secondary);
+        }
+        
+        .blacklist-item-name {
+            color: var(--gray-dark);
+        }
+        
+        .blacklist-item-status {
+            background: var(--error);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .blacklist-clean {
+            background: rgba(16, 185, 129, 0.05);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: var(--radius-sm);
+            padding: 20px;
+            text-align: center;
+            color: var(--success);
+        }
+        
+        .blacklist-clean h4 {
+            font-family: 'Poppins', sans-serif;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .blacklist-ips {
+            margin-top: 20px;
+            padding: 20px;
+            background: var(--gray-light);
+            border-radius: var(--radius-sm);
+        }
+        
+        .blacklist-ips h5 {
+            font-family: 'Poppins', sans-serif;
+            color: var(--secondary);
+            margin-bottom: 10px;
+        }
+        
+        .ip-badge {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.9rem;
+            margin: 4px;
+        }
+        
         /* Cloud Services Section */
         .cloud-services {
             background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
@@ -2004,7 +2343,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
         
         .info-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
             gap: 30px;
         }
         
@@ -2091,7 +2430,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
         
         .tips-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 30px;
         }
         
@@ -2439,6 +2778,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
                     ?></div>
                     <div class="stat-label">Scadenza dominio</div>
                 </div>
+                <?php if ($blacklist_results && isset($blacklist_results['reputation'])): ?>
+                <div class="stat-card">
+                    <div class="stat-icon">🛡️</div>
+                    <div class="stat-value"><?php echo $blacklist_results['reputation']['score']; ?><span style="font-size: 0.5em; font-weight: 400;">%</span></div>
+                    <div class="stat-label">Reputazione</div>
+                </div>
+                <?php endif; ?>
             </section>
             
             <!-- WHOIS Information Section -->
@@ -2532,6 +2878,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
                     <?php endif; ?>
                 </div>
                 <?php endif; ?>
+            </section>
+            <?php endif; ?>
+            
+            <!-- Blacklist Check Section -->
+            <?php if ($blacklist_results && !empty($blacklist_results['ips_checked'])): ?>
+            <section class="blacklist-section" data-aos="fade-up">
+                <div class="blacklist-header">
+                    <h2 class="blacklist-title">
+                        <span>🛡️</span> Controllo Blacklist e Reputazione
+                    </h2>
+                    <div class="reputation-badge <?php echo $blacklist_results['reputation']['color']; ?>">
+                        <span style="font-size: 1.5rem;"><?php echo $blacklist_results['reputation']['score']; ?>%</span>
+                        <span><?php echo $blacklist_results['reputation']['status']; ?></span>
+                    </div>
+                </div>
+                
+                <div class="blacklist-stats">
+                    <div class="blacklist-stat">
+                        <div class="blacklist-stat-value"><?php echo count($blacklist_results['ips_checked']); ?></div>
+                        <div class="blacklist-stat-label">IP Controllati</div>
+                    </div>
+                    <div class="blacklist-stat">
+                        <div class="blacklist-stat-value"><?php echo count(array_unique(array_column($blacklist_results['clean'], 'blacklist'))); ?></div>
+                        <div class="blacklist-stat-label">Blacklist Verificate</div>
+                    </div>
+                    <div class="blacklist-stat">
+                        <div class="blacklist-stat-value" style="color: <?php echo $blacklist_results['listed'] > 0 ? 'var(--error)' : 'var(--success)'; ?>">
+                            <?php echo $blacklist_results['listed']; ?>
+                        </div>
+                        <div class="blacklist-stat-label">Presenze in Blacklist</div>
+                    </div>
+                    <div class="blacklist-stat">
+                        <div class="blacklist-stat-value"><?php echo $blacklist_results['checked']; ?></div>
+                        <div class="blacklist-stat-label">Controlli Totali</div>
+                    </div>
+                </div>
+                
+                <div class="blacklist-results">
+                    <?php if (!empty($blacklist_results['issues'])): ?>
+                        <div class="blacklist-issues">
+                            <h4><span>⚠️</span> IP Presenti in Blacklist</h4>
+                            <?php foreach ($blacklist_results['issues'] as $issue): ?>
+                                <div class="blacklist-item">
+                                    <div class="blacklist-item-info">
+                                        <span class="blacklist-item-ip"><?php echo htmlspecialchars($issue['ip']); ?></span>
+                                        <span class="blacklist-item-name"><?php echo htmlspecialchars($issue['blacklist']); ?></span>
+                                    </div>
+                                    <span class="blacklist-item-status">Listato</span>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php else: ?>
+                        <div class="blacklist-clean">
+                            <h4><span>✅</span> Nessuna presenza in blacklist rilevata!</h4>
+                            <p>Tutti gli IP del dominio hanno una reputazione pulita.</p>
+                        </div>
+                    <?php endif; ?>
+                    
+                    <div class="blacklist-ips">
+                        <h5>IP del dominio verificati:</h5>
+                        <?php foreach ($blacklist_results['ips_checked'] as $ip): ?>
+                            <span class="ip-badge"><?php echo htmlspecialchars($ip); ?></span>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
             </section>
             <?php endif; ?>
             
@@ -2687,6 +3098,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
                     <h3>Dati WHOIS</h3>
                     <p>Accedi alle informazioni sull'intestatario del dominio, data di registrazione e scadenza. Questi dati sono essenziali per la due diligence e la verifica della proprietà del dominio.</p>
                 </div>
+                <div class="info-card" data-aos="fade-up" data-aos-delay="400">
+                    <div class="info-card-icon">🛡️</div>
+                    <h3>Controllo Blacklist</h3>
+                    <p>Verifichiamo la presenza degli IP del dominio in oltre 20 blacklist principali. Essenziale per garantire che le email vengano consegnate e il sito non sia bloccato.</p>
+                </div>
             </div>
         </section>
     </div>
@@ -2695,7 +3111,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
     <section class="tips-section" id="tips">
         <div class="tips-container">
             <div class="tips-header" data-aos="fade-up">
-                <h2>Best Practices DNS Enterprise</h2>
+                <h2>7 Best Practices DNS Enterprise</h2>
                 <p>Ottimizza la configurazione DNS per ambienti business</p>
             </div>
             
@@ -2740,6 +3156,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
                     <div class="tip-icon">📊</div>
                     <h3 class="tip-title">Monitoring</h3>
                     <p>Monitora costantemente i tuoi record DNS per rilevare modifiche non autorizzate o problemi di configurazione.</p>
+                </div>
+                
+                <div class="tip-card" data-aos="fade-up" data-aos-delay="700">
+                    <span class="tip-number">07</span>
+                    <div class="tip-icon">🛡️</div>
+                    <h3 class="tip-title">Blacklist Monitoring</h3>
+                    <p>Controlla regolarmente la presenza dei tuoi IP nelle blacklist. Una presenza può danneggiare la deliverability delle email e la reputazione online.</p>
                 </div>
             </div>
         </div>
