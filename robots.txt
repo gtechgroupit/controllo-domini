@@ -1,0 +1,230 @@
+# =====================================================
+# robots.txt - Controllo Domini
+# Direttive per i motori di ricerca
+# 
+# @author G Tech Group
+# @website https://controllodomini.it
+# =====================================================
+
+# Regole per tutti i bot
+User-agent: *
+
+# Directory da non indicizzare
+Disallow: /config/
+Disallow: /includes/
+Disallow: /templates/
+Disallow: /vendor/
+Disallow: /node_modules/
+Disallow: /api/
+Disallow: /.git/
+Disallow: /tests/
+Disallow: /temp/
+Disallow: /cache/
+Disallow: /logs/
+Disallow: /backup/
+
+# File da non indicizzare
+Disallow: /.htaccess
+Disallow: /.htpasswd
+Disallow: /.env
+Disallow: /composer.json
+Disallow: /composer.lock
+Disallow: /package.json
+Disallow: /package-lock.json
+Disallow: /*.sql
+Disallow: /*.log
+Disallow: /*.bak
+Disallow: /*.zip
+Disallow: /*.tar
+Disallow: /*.gz
+
+# File PHP di sistema da non indicizzare
+Disallow: /config.php
+Disallow: /install.php
+Disallow: /update.php
+Disallow: /test.php
+Disallow: /phpinfo.php
+
+# Parametri URL da non indicizzare
+Disallow: /*?debug=
+Disallow: /*?test=
+Disallow: /*?preview=
+Disallow: /*?admin=
+
+# Consenti l'accesso a file importanti
+Allow: /assets/css/
+Allow: /assets/js/
+Allow: /assets/images/
+Allow: /favicon.ico
+Allow: /sitemap.xml
+Allow: /robots.txt
+
+# Pagine da indicizzare
+Allow: /$
+Allow: /index.php
+Allow: /api-docs
+Allow: /contatti
+Allow: /privacy
+Allow: /termini
+Allow: /changelog
+Allow: /guide/
+Allow: /blog/
+
+# Sitemap
+Sitemap: https://controllodomini.it/sitemap.xml
+
+# Crawl-delay per bot rispettosi (in secondi)
+Crawl-delay: 1
+
+# =====================================================
+# Regole specifiche per bot
+# =====================================================
+
+# Googlebot
+User-agent: Googlebot
+Disallow: /api/
+Crawl-delay: 0
+
+# Googlebot Images
+User-agent: Googlebot-Image
+Allow: /assets/images/
+Disallow: /temp/
+Disallow: /cache/
+
+# Bingbot
+User-agent: Bingbot
+Disallow: /api/
+Crawl-delay: 1
+
+# Slurp (Yahoo)
+User-agent: Slurp
+Disallow: /api/
+Crawl-delay: 1
+
+# DuckDuckBot
+User-agent: DuckDuckBot
+Disallow: /api/
+Crawl-delay: 1
+
+# Baiduspider
+User-agent: Baiduspider
+Disallow: /api/
+Crawl-delay: 2
+
+# Yandex
+User-agent: Yandex
+Disallow: /api/
+Crawl-delay: 1
+
+# facebookexternalhit (per Open Graph)
+User-agent: facebookexternalhit
+Allow: /
+Crawl-delay: 0
+
+# Twitterbot (per Twitter Cards)
+User-agent: Twitterbot
+Allow: /
+Crawl-delay: 0
+
+# LinkedInBot
+User-agent: LinkedInBot
+Allow: /
+Crawl-delay: 0
+
+# WhatsApp
+User-agent: WhatsApp
+Allow: /
+Crawl-delay: 0
+
+# =====================================================
+# Blocco bot indesiderati
+# =====================================================
+
+# AhrefsBot
+User-agent: AhrefsBot
+Disallow: /
+
+# SemrushBot
+User-agent: SemrushBot
+Disallow: /
+
+# DotBot
+User-agent: DotBot
+Disallow: /
+
+# MJ12bot
+User-agent: MJ12bot
+Disallow: /
+
+# Rogerbot
+User-agent: Rogerbot
+Disallow: /
+
+# SEOkicks-Robot
+User-agent: SEOkicks-Robot
+Disallow: /
+
+# MegaIndex.ru
+User-agent: MegaIndex.ru
+Disallow: /
+
+# BLEXBot
+User-agent: BLEXBot
+Disallow: /
+
+# Majestic-12
+User-agent: MJ12bot
+Disallow: /
+
+# Bot generici di scraping
+User-agent: wget
+Disallow: /
+
+User-agent: curl
+Disallow: /
+
+User-agent: HTTrack
+Disallow: /
+
+User-agent: WebCopier
+Disallow: /
+
+User-agent: WebReaper
+Disallow: /
+
+User-agent: Offline Explorer
+Disallow: /
+
+# =====================================================
+# AI Crawlers (gestione bot AI)
+# =====================================================
+
+# OpenAI GPTBot
+User-agent: GPTBot
+Allow: /
+Crawl-delay: 2
+
+# Anthropic Claude
+User-agent: Claude-Web
+Allow: /
+Crawl-delay: 2
+
+# Google Bard
+User-agent: Google-Extended
+Allow: /
+Crawl-delay: 1
+
+# =====================================================
+# Note finali
+# =====================================================
+
+# Questo file robots.txt è ottimizzato per:
+# - Consentire l'indicizzazione delle pagine pubbliche
+# - Proteggere file e directory sensibili
+# - Gestire il crawl rate per non sovraccaricare il server
+# - Bloccare bot di scraping e spam
+# - Supportare i social media crawler per preview
+# - Gestire i nuovi AI crawlers
+
+# Per verificare il file:
+# https://www.google.com/webmasters/tools/robots-testing-tool
