@@ -17,25 +17,27 @@ RewriteEngine On
 Options -Indexes
 
 # Proteggi file sensibili
-<FilesMatch "^(\.htaccess|\.htpasswd|\.env|composer\.(json|lock)|package\.(json|lock)|README\.md|CHANGELOG\.md|\.git.*)$">
+<FilesMatch "^(\.htaccess|\.htpasswd|\.env|composer\.(json|lock)|package\.(json|lock)|\.git.*)$">
     Order Allow,Deny
     Deny from all
 </FilesMatch>
 
-# Proteggi le directory di sistema
+# Proteggi le directory di sistema dal listing
 <IfModule mod_rewrite.c>
-    RewriteRule ^(config|includes|templates|vendor|node_modules|\.git)/ - [F,L]
+    RewriteRule ^(config|includes|templates|vendor|node_modules|\.git)/.*$ - [F,L]
 </IfModule>
 
-# Previeni l'accesso diretto ai file PHP negli includes
-<FilesMatch "^(.*)\.(inc|php)$">
-    Order Allow,Deny
-    Deny from all
+# Blocca accesso diretto ai file PHP nelle directory protette
+<FilesMatch "\.php$">
+    <If "%{REQUEST_URI} =~ m#^/(config|includes|templates|vendor)/.*\.php$#">
+        Order Allow,Deny
+        Deny from all
+    </If>
 </FilesMatch>
 
-# Consenti l'accesso solo ai file PHP principali
-<FilesMatch "^(index|api-docs|contatti|privacy|termini|status|changelog)\.php$">
-    Order Deny,Allow
+# Consenti accesso a tutti i file statici nelle directory pubbliche
+<FilesMatch "\.(css|js|jpg|jpeg|png|gif|svg|webp|ico|woff|woff2|ttf|otf|pdf|xml|txt|webmanifest)$">
+    Order Allow,Deny
     Allow from all
 </FilesMatch>
 
@@ -54,7 +56,7 @@ Options -Indexes
     Header set Referrer-Policy "strict-origin-when-cross-origin"
     
     # Content Security Policy base
-    Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com"
+    Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com"
     
     # Permissions Policy
     Header set Permissions-Policy "geolocation=(), microphone=(), camera=()"
@@ -114,13 +116,14 @@ FileETag None
 # URL REWRITING
 # =====================================================
 
-# Forza HTTPS
+# Forza HTTPS (solo se non siamo già in HTTPS)
 <IfModule mod_rewrite.c>
     RewriteCond %{HTTPS} !=on
+    RewriteCond %{HTTP:X-Forwarded-Proto} !https
     RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
 </IfModule>
 
-# Rimuovi www (o aggiungi www se preferisci)
+# Rimuovi www
 <IfModule mod_rewrite.c>
     RewriteCond %{HTTP_HOST} ^www\.(.+)$ [NC]
     RewriteRule ^(.*)$ https://%1/$1 [R=301,L]
@@ -134,6 +137,11 @@ FileETag None
 
 # Pretty URLs
 <IfModule mod_rewrite.c>
+    # File e directory esistenti - servili direttamente
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+    
     # API endpoints
     RewriteRule ^api/?$ /api/index.php [L]
     RewriteRule ^api/analyze/?$ /api/analyze.php [L]
@@ -142,6 +150,7 @@ FileETag None
     # Pagine statiche senza .php
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME}.php -f
     RewriteRule ^([^/]+)/?$ $1.php [L]
     
     # Redirect 404 personalizzato
@@ -177,6 +186,7 @@ FileETag None
 # Proteggi immagini da hotlinking
 <IfModule mod_rewrite.c>
     RewriteCond %{HTTP_REFERER} !^$
+    RewriteCond %{HTTP_REFERER} !^https?://(www\.)?dnscheck\.gtechgroup\.it [NC]
     RewriteCond %{HTTP_REFERER} !^https?://(www\.)?controllodomini\.it [NC]
     RewriteCond %{HTTP_REFERER} !^https?://(www\.)?google\. [NC]
     RewriteCond %{HTTP_REFERER} !^https?://(www\.)?bing\. [NC]
@@ -203,6 +213,9 @@ DefaultLanguage it
     
     # JSON
     AddType application/json json
+    
+    # Webmanifest
+    AddType application/manifest+json webmanifest
     
     # Font
     AddType font/woff2 woff2
@@ -236,21 +249,30 @@ DefaultLanguage it
 # CUSTOM RULES
 # =====================================================
 
-# Blocca user agents sospetti
+# Blocca user agents sospetti (meno aggressivo)
 <IfModule mod_rewrite.c>
-    RewriteCond %{HTTP_USER_AGENT} (wget|curl|libwww-perl|Python|nikto|scan) [NC,OR]
+    RewriteCond %{HTTP_USER_AGENT} (nikto|sqlmap|scan|nessus|havij|acunetix) [NC,OR]
     RewriteCond %{HTTP_USER_AGENT} (binlar|casper|cmsworldmap|comodo|diavol|dotbot) [NC]
     RewriteRule ^(.*)$ - [F,L]
 </IfModule>
 
 # Blocca richieste sospette
 <IfModule mod_rewrite.c>
-    RewriteCond %{QUERY_STRING} (base64_encode|globals|mosconfig|<script) [NC,OR]
+    RewriteCond %{QUERY_STRING} (base64_encode|globals|mosconfig) [NC,OR]
     RewriteCond %{QUERY_STRING} (boot\.ini|etc/passwd|self/environ) [NC,OR]
-    RewriteCond %{QUERY_STRING} (thumbs?s=|thumbs/phpthumb) [NC,OR]
-    RewriteCond %{QUERY_STRING} ('|"|\)|;|<|>|'') [NC]
+    RewriteCond %{QUERY_STRING} (<script|javascript:) [NC]
     RewriteRule ^(.*)$ - [F,L]
 </IfModule>
+
+# =====================================================
+# ACCESSO SPECIFICO PER DIRECTORY
+# =====================================================
+
+# Consenti accesso alla directory assets e sottocartelle
+<Directory ~ "^/var/www/vhosts/dnscheck.gtechgroup.it/httpdocs/assets">
+    Order Allow,Deny
+    Allow from all
+</Directory>
 
 # =====================================================
 # MAINTENANCE MODE (decommentare quando necessario)
