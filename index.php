@@ -24,7 +24,8 @@ function measureDnsResponseTime($domain) {
 }
 
 // Funzione avanzata per ottenere informazioni WHOIS
-function getWhoisInfo($domain) {
+function getWhoisInfo($domain, $debug = false) {
+    $GLOBALS['debug_mode'] = $debug;
     $info = array(
         'registrar' => 'Non disponibile',
         'created' => 'Non disponibile',
@@ -128,7 +129,11 @@ function getWhoisInfo($domain) {
                             $value = str_replace('/', '-', $value);
                             $timestamp = strtotime($value);
                         }
-                        if ($timestamp) {
+                        if (!$timestamp && preg_match('/(\d{4})[.\-\/](\d{2})[.\-\/](\d{2})/', $value, $date_parts)) {
+                            // Prova a ricostruire la data
+                            $timestamp = strtotime($date_parts[1] . '-' . $date_parts[2] . '-' . $date_parts[3]);
+                        }
+                        if ($timestamp && $timestamp > 0) {
                             $value = date('d/m/Y', $timestamp);
                         }
                     }
@@ -193,6 +198,108 @@ function getWhoisInfo($domain) {
                 }
             }
         }
+        
+        // Parsing speciale per domini .it
+        if (strpos($domain, '.it') !== false) {
+            // Status per domini .it
+            if (preg_match('/Status:\s*(.+)/i', $whois_data, $matches)) {
+                $status = trim($matches[1]);
+                if (stripos($status, 'ok') !== false || stripos($status, 'active') !== false) {
+                    $info['status'] = 'Active';
+                } elseif (stripos($status, 'pendingDelete') !== false) {
+                    $info['status'] = 'Pending Delete';
+                } elseif (stripos($status, 'inactive') !== false) {
+                    $info['status'] = 'Inactive';
+                } else {
+                    $info['status'] = ucfirst($status);
+                }
+            }
+            
+            // Data di creazione per .it
+            if ($info['created'] == 'Non disponibile' && preg_match('/Created:\s*(\d{4}-\d{2}-\d{2})/i', $whois_data, $matches)) {
+                $info['created'] = date('d/m/Y', strtotime($matches[1]));
+            }
+            
+            // Data di scadenza per .it
+            if ($info['expires'] == 'Non disponibile' && preg_match('/Expire Date:\s*(\d{4}-\d{2}-\d{2})/i', $whois_data, $matches)) {
+                $info['expires'] = date('d/m/Y', strtotime($matches[1]));
+            }
+            
+            // Registrar per .it
+            if ($info['registrar'] == 'Non disponibile' && preg_match('/Registrar[\s\S]*?Organization:\s*(.+)/i', $whois_data, $matches)) {
+                $info['registrar'] = trim($matches[1]);
+            }
+        }
+        
+        // Ulteriore tentativo di parsing per informazioni mancanti
+        if ($info['owner'] == 'Non disponibile' || $info['owner'] == 'Protetto da Privacy/GDPR') {
+            // Cerca Contact Name generico
+            if (preg_match('/Contact Name:\s*(.+)/i', $whois_data, $matches)) {
+                $name = trim($matches[1]);
+                if ($name && !preg_match('/not available|redacted|privacy/i', $name)) {
+                    $info['owner'] = $name;
+                }
+            }
+        }
+        
+        // Se ancora non abbiamo date, prova formati alternativi
+        if ($info['created'] == 'Non disponibile') {
+            if (preg_match('/registered:\s*(.+)/i', $whois_data, $matches)) {
+                $date = trim($matches[1]);
+                $timestamp = strtotime($date);
+                if ($timestamp) {
+                    $info['created'] = date('d/m/Y', $timestamp);
+                }
+            }
+        }
+        
+        if ($info['expires'] == 'Non disponibile') {
+            if (preg_match('/paid-till:\s*(.+)/i', $whois_data, $matches)) {
+                $date = trim($matches[1]);
+                $timestamp = strtotime($date);
+                if ($timestamp) {
+                    $info['expires'] = date('d/m/Y', $timestamp);
+                }
+            }
+        }
+        
+        // Parsing per domini con protezione privacy
+        if (stripos($whois_data, 'whoisguard') !== false || 
+            stripos($whois_data, 'privacy protect') !== false ||
+            stripos($whois_data, 'domain privacy') !== false ||
+            stripos($whois_data, 'identity protect') !== false) {
+            if ($info['owner'] == 'Non disponibile') {
+                $info['owner'] = 'Servizio Privacy Attivo';
+            }
+        }
+    }
+    
+    // Se non abbiamo nameserver dal WHOIS, prova a prenderli dai record DNS NS
+    if (empty($info['nameservers'])) {
+        $ns_records = @dns_get_record($domain, DNS_NS);
+        if ($ns_records) {
+            foreach ($ns_records as $ns) {
+                if (isset($ns['target'])) {
+                    $info['nameservers'][] = strtolower($ns['target']);
+                }
+            }
+        }
+    }
+    
+    // Se non abbiamo ancora dati significativi, almeno proviamo a determinare se il dominio esiste
+    if ($info['owner'] == 'Non disponibile' && $info['registrar'] == 'Non disponibile') {
+        // Verifica se il dominio ha almeno record DNS
+        $has_dns = @dns_get_record($domain, DNS_ANY);
+        if ($has_dns) {
+            $info['owner'] = 'Informazioni protette';
+            $info['status'] = 'Active';
+        }
+    }
+    
+    // Debug output
+    if (isset($GLOBALS['debug_mode']) && $GLOBALS['debug_mode'] && $whois_data) {
+        $info['_debug'] = substr($whois_data, 0, 500) . '...';
+    }
     }
     
     return $info;
@@ -339,13 +446,17 @@ function getWhoisViaCurl($domain) {
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 10);
     curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
     
     $html = curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
     
-    if ($html) {
+    if ($html && $http_code == 200) {
         // Estrai i dati WHOIS dall'HTML
-        if (preg_match('/<pre[^>]*>(.+?)<\/pre>/si', $html, $matches)) {
+        if (preg_match('/<pre[^>]*class="df-raw"[^>]*>(.+?)<\/pre>/si', $html, $matches) ||
+            preg_match('/<pre[^>]*>(.+?)<\/pre>/si', $html, $matches)) {
             return html_entity_decode(strip_tags($matches[1]));
         }
     }
@@ -834,6 +945,7 @@ $response_time = 0;
 $domain_health = null;
 $whois_info = null;
 $cloud_services = null;
+$debug_mode = isset($_GET['debug']) || isset($_POST['debug']) ? true : false; // Aggiungi ?debug alla URL per debug
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
     $domain = trim($_POST['domain']);
@@ -867,7 +979,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
                 $domain_health = analyzeDomainHealth($dns_results['records'], $cloud_services);
                 
                 // Ottieni info whois
-                $whois_info = getWhoisInfo($domain);
+                $whois_info = getWhoisInfo($domain, $debug_mode);
+                
+                // Se il WHOIS non ha trovato molto, aggiungi informazioni dai DNS
+                if ($whois_info['owner'] == 'Non disponibile' || $whois_info['owner'] == 'Informazioni protette') {
+                    // Prova a dedurre qualcosa dai record MX
+                    if (isset($cloud_services['microsoft365'])) {
+                        $whois_info['owner'] = 'Dominio Microsoft 365 (dedotto)';
+                    } elseif (isset($cloud_services['google_workspace'])) {
+                        $whois_info['owner'] = 'Dominio Google Workspace (dedotto)';
+                    }
+                }
             }
         }
     }
@@ -1305,6 +1427,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
             font-weight: 700;
             color: var(--secondary);
             margin-bottom: 5px;
+            line-height: 1.2;
         }
         
         .stat-label {
@@ -2259,6 +2382,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
                                    autocomplete="off">
                         </div>
                     </div>
+                    <?php if ($debug_mode): ?>
+                    <input type="hidden" name="debug" value="1">
+                    <?php endif; ?>
                     <button type="submit" class="submit-btn" id="submitBtn">
                         <span>Avvia Analisi Completa</span>
                     </button>
@@ -2279,7 +2405,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
             <section class="stats-grid" data-aos="fade-up">
                 <div class="stat-card">
                     <div class="stat-icon">⏱️</div>
-                    <div class="stat-value"><?php echo $response_time; ?>ms</div>
+                    <div class="stat-value"><?php echo $response_time; ?><span style="font-size: 0.5em; font-weight: 400;">ms</span></div>
                     <div class="stat-label">Tempo di risposta DNS</div>
                 </div>
                 <div class="stat-card">
@@ -2299,11 +2425,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
                 </div>
                 <div class="stat-card">
                     <div class="stat-icon">📅</div>
-                    <div class="stat-value"><?php 
-                        if ($whois_info['expires'] != 'Non disponibile') {
-                            echo $whois_info['expires'];
+                    <div class="stat-value" style="font-size: <?php echo ($whois_info['expires'] == 'Non disponibile' || $whois_info['expires'] == 'N/D') ? '1.8rem' : '1.2rem'; ?>;"><?php 
+                        if ($whois_info['expires'] != 'Non disponibile' && $whois_info['expires'] != 'N/D') {
+                            $parts = explode('/', $whois_info['expires']);
+                            if (count($parts) == 3) {
+                                echo $parts[0] . '/' . $parts[1] . '<br><span style="font-size: 0.7em; font-weight: 400;">' . $parts[2] . '</span>';
+                            } else {
+                                echo $whois_info['expires'];
+                            }
                         } else {
-                            echo 'N/D';
+                            echo 'Non disponibile';
                         }
                     ?></div>
                     <div class="stat-label">Scadenza dominio</div>
@@ -2382,6 +2513,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
                     <span class="message-icon">ℹ️</span>
                     <p>I dati WHOIS potrebbero non essere disponibili a causa di limitazioni del server o privacy GDPR. 
                     Per informazioni complete, consulta un servizio WHOIS dedicato.</p>
+                </div>
+                <?php endif; ?>
+                
+                <?php if ($debug_mode): ?>
+                <div class="whois-notice" style="background: #f0f0f0; color: #333;">
+                    <span class="message-icon">🔧</span>
+                    <p><strong>Debug Mode:</strong> 
+                    Socket: <?php echo function_exists('fsockopen') ? '✓' : '✗'; ?> | 
+                    Shell: <?php echo (function_exists('shell_exec') && !in_array('shell_exec', explode(',', ini_get('disable_functions')))) ? '✓' : '✗'; ?> | 
+                    cURL: <?php echo function_exists('curl_init') ? '✓' : '✗'; ?>
+                    </p>
+                    <?php if (isset($whois_info['_debug'])): ?>
+                    <details style="margin-top: 10px;">
+                        <summary style="cursor: pointer;">Raw WHOIS Data (first 500 chars)</summary>
+                        <pre style="background: white; padding: 10px; margin-top: 10px; font-size: 12px; overflow-x: auto;"><?php echo htmlspecialchars($whois_info['_debug']); ?></pre>
+                    </details>
+                    <?php endif; ?>
                 </div>
                 <?php endif; ?>
             </section>
