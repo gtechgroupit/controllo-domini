@@ -127,36 +127,39 @@ function getIpsToCheck($domain, $options) {
 
 /**
  * Ottiene gli indirizzi IP per un hostname
+ * Usa function_exists per evitare ridichiarazione
  * 
  * @param string $hostname Hostname
  * @return array Lista IP
  */
-function getIpAddresses($hostname) {
-    $ips = array();
-    
-    // IPv4
-    $a_records = @dns_get_record($hostname, DNS_A);
-    if ($a_records) {
-        foreach ($a_records as $record) {
-            if (isset($record['ip']) && filter_var($record['ip'], FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
-                $ips[] = $record['ip'];
+if (!function_exists('getIpAddresses')) {
+    function getIpAddresses($hostname) {
+        $ips = array();
+        
+        // IPv4
+        $a_records = @dns_get_record($hostname, DNS_A);
+        if ($a_records) {
+            foreach ($a_records as $record) {
+                if (isset($record['ip']) && filter_var($record['ip'], FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+                    $ips[] = $record['ip'];
+                }
             }
         }
-    }
-    
-    // IPv6 (opzionale - molte blacklist non supportano IPv6)
-    /*
-    $aaaa_records = @dns_get_record($hostname, DNS_AAAA);
-    if ($aaaa_records) {
-        foreach ($aaaa_records as $record) {
-            if (isset($record['ipv6']) && filter_var($record['ipv6'], FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
-                $ips[] = $record['ipv6'];
+        
+        // IPv6 (opzionale - molte blacklist non supportano IPv6)
+        /*
+        $aaaa_records = @dns_get_record($hostname, DNS_AAAA);
+        if ($aaaa_records) {
+            foreach ($aaaa_records as $record) {
+                if (isset($record['ipv6']) && filter_var($record['ipv6'], FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+                    $ips[] = $record['ipv6'];
+                }
             }
         }
+        */
+        
+        return array_unique($ips);
     }
-    */
-    
-    return array_unique($ips);
 }
 
 /**
@@ -192,16 +195,11 @@ function getMxIpAddresses($domain) {
 /**
  * Ottiene la lista dei server blacklist
  * 
- * @return array Mappa server => nome
+ * @return array Mappa DNSBL => Nome
  */
 function getBlacklistServers() {
-    // Usa configurazione globale se disponibile
-    if (isset($GLOBALS['dnsbl_servers'])) {
-        return $GLOBALS['dnsbl_servers'];
-    }
-    
-    // Lista di default delle principali blacklist
     return array(
+        // Blacklist principali
         'zen.spamhaus.org' => 'Spamhaus ZEN',
         'bl.spamcop.net' => 'SpamCop',
         'b.barracudacentral.org' => 'Barracuda',
@@ -209,27 +207,67 @@ function getBlacklistServers() {
         'spam.dnsbl.sorbs.net' => 'SORBS Spam',
         'cbl.abuseat.org' => 'CBL Abuseat',
         'dnsbl-1.uceprotect.net' => 'UCEPROTECT L1',
-        'dnsbl-2.uceprotect.net' => 'UCEPROTECT L2',
-        'dnsbl-3.uceprotect.net' => 'UCEPROTECT L3',
         'psbl.surriel.com' => 'PSBL',
         'db.wpbl.info' => 'WPBL',
         'ix.dnsbl.manitu.net' => 'Manitu',
         'combined.rbl.msrbl.net' => 'MSRBL',
-        'multi.spamhaus.org' => 'Spamhaus Multi',
-        'bogons.cymru.com' => 'Team Cymru Bogons',
-        'tor.dan.me.uk' => 'TOR Exit Nodes',
-        'rbl.spamlab.com' => 'SpamLab',
-        'noptr.spamrats.com' => 'SpamRats NoPtr',
-        'spam.spamrats.com' => 'SpamRats Spam',
-        'virbl.dnsbl.bit.nl' => 'VirBL',
-        'wormrbl.imp.ch' => 'Worm RBL',
-        'spamguard.leadmon.net' => 'SpamGuard',
-        'rbl.megarbl.net' => 'MegaRBL',
-        'combined.abuse.ch' => 'Abuse.ch',
-        'drone.abuse.ch' => 'Abuse.ch Drone',
-        'httpbl.abuse.ch' => 'Abuse.ch HTTP',
-        'spam.abuse.ch' => 'Abuse.ch Spam'
+        'multi.surbl.org' => 'SURBL',
+        'dsn.rfc-ignorant.org' => 'RFC-Ignorant DSN',
+        'dul.dnsbl.sorbs.net' => 'SORBS DUL',
+        'korea.services.net' => 'Korea Blocklist',
+        'relays.bl.gweep.ca' => 'Gweep Relays',
+        'residential.block.transip.nl' => 'TransIP Residential',
+        'dynip.rothen.com' => 'Rothen Dynamic',
+        'exitnodes.tor.dnsbl.sectoor.de' => 'TOR Exit Nodes',
+        'ips.backscatterer.org' => 'Backscatterer',
+        
+        // Blacklist aggiuntive
+        'bogons.cymru.com' => 'Cymru Bogons',
+        'tor.dan.me.uk' => 'Dan TOR',
+        'rbl.interserver.net' => 'InterServer',
+        'query.senderbase.org' => 'SenderBase',
+        'opm.tornevall.org' => 'Tornevall',
+        'netblock.pedantic.org' => 'Pedantic',
+        'access.redhawk.org' => 'RedHawk',
+        'cdl.anti-spam.org.cn' => 'Anti-Spam China',
+        'multi.uribl.com' => 'URIBL',
+        'dnsbl.dronebl.org' => 'DroneBL',
+        'truncate.gbudb.net' => 'GBUdb',
+        'dnsbl.spfbl.net' => 'SPFBL',
     );
+}
+
+/**
+ * Converte IP in formato reverse
+ * Usa function_exists per evitare ridichiarazione se già definita in utilities.php
+ * 
+ * @param string $ip IP da convertire
+ * @return string IP reverse
+ */
+if (!function_exists('reverseIP')) {
+    function reverseIP($ip) {
+        // Verifica se è IPv4
+        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            return implode('.', array_reverse(explode('.', $ip)));
+        }
+        
+        // Per IPv6 è più complesso
+        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+            // Espandi l'indirizzo IPv6
+            $hex = unpack("H*hex", inet_pton($ip));
+            $hex = $hex['hex'];
+            
+            // Inverti e aggiungi punti
+            $reversed = '';
+            for ($i = strlen($hex) - 1; $i >= 0; $i--) {
+                $reversed .= $hex[$i] . '.';
+            }
+            
+            return rtrim($reversed, '.');
+        }
+        
+        return $ip; // Ritorna originale se non valido
+    }
 }
 
 /**
@@ -406,35 +444,28 @@ function checkSingleBlacklist($ip, $reverse_ip, $dnsbl, $name, $timeout) {
     
     $query = $reverse_ip . '.' . $dnsbl;
     
-    // Metodo 1: DNS lookup diretto
-    $start_time = microtime(true);
-    $response = @gethostbyname($query);
-    $lookup_time = microtime(true) - $start_time;
+    // Timeout più basso per query DNS
+    $old_timeout = ini_get('default_socket_timeout');
+    ini_set('default_socket_timeout', $timeout);
     
-    // Se il timeout è stato superato
-    if ($lookup_time > $timeout) {
-        $result['error'] = "Timeout checking {$name} for {$ip}";
-        return $result;
-    }
-    
-    // Se la risposta è diversa dalla query, l'IP è listato
-    if ($response && $response != $query && filter_var($response, FILTER_VALIDATE_IP)) {
-        $result['listed'] = true;
-        $result['response'] = $response;
+    try {
+        // Esegui query DNS
+        $response = @gethostbyname($query);
         
-        // Interpreta la risposta
-        $result['reason'] = interpretBlacklistResponse($response, $dnsbl);
+        if ($response && $response != $query) {
+            // L'IP è listato
+            $result['listed'] = true;
+            $result['response'] = $response;
+            
+            // Interpreta il codice di risposta
+            $result['reason'] = interpretBlacklistResponse($response, $dnsbl);
+        }
+    } catch (Exception $e) {
+        $result['error'] = "Errore nel controllo {$name}: " . $e->getMessage();
     }
     
-    // Metodo 2: Se il primo metodo fallisce, prova con dns_get_record
-    if (!$result['listed'] && function_exists('dns_get_record')) {
-        $dns_result = @dns_get_record($query, DNS_A);
-        if ($dns_result && count($dns_result) > 0) {
-            $result['listed'] = true;
-            $result['response'] = $dns_result[0]['ip'];
-            $result['reason'] = interpretBlacklistResponse($dns_result[0]['ip'], $dnsbl);
-        }
-    }
+    // Ripristina timeout
+    ini_set('default_socket_timeout', $old_timeout);
     
     return $result;
 }
@@ -444,43 +475,68 @@ function checkSingleBlacklist($ip, $reverse_ip, $dnsbl, $name, $timeout) {
  * 
  * @param string $response Risposta IP
  * @param string $dnsbl Server DNSBL
- * @return string Motivo/categoria
+ * @return string Descrizione
  */
 function interpretBlacklistResponse($response, $dnsbl) {
-    // Mappe di risposta per blacklist comuni
-    $response_maps = array(
-        'zen.spamhaus.org' => array(
-            '127.0.0.2' => 'SBL - Spammer',
-            '127.0.0.3' => 'CSS - Spammer',
-            '127.0.0.4' => 'XBL - Exploited/Compromised',
-            '127.0.0.9' => 'PBL - Policy Block',
-            '127.0.0.10' => 'PBL - ISP Maintained',
-            '127.0.0.11' => 'PBL - Non-MTA IP'
-        ),
-        'bl.spamcop.net' => array(
-            '127.0.0.2' => 'Listed for spam'
-        ),
-        'dnsbl.sorbs.net' => array(
-            '127.0.0.2' => 'HTTP Proxy',
-            '127.0.0.3' => 'SOCKS Proxy',
-            '127.0.0.4' => 'Misc Proxy',
-            '127.0.0.5' => 'SMTP Relay',
-            '127.0.0.6' => 'Spam Source',
-            '127.0.0.7' => 'Web Vulnerable',
-            '127.0.0.8' => 'Block Reserved',
-            '127.0.0.9' => 'Zombie Spam',
-            '127.0.0.10' => 'Dynamic IP',
-            '127.0.0.11' => 'Bad Config',
-            '127.0.0.12' => 'No Mail Server'
-        )
-    );
-    
-    // Cerca interpretazione specifica
-    if (isset($response_maps[$dnsbl]) && isset($response_maps[$dnsbl][$response])) {
-        return $response_maps[$dnsbl][$response];
+    // Interpretazioni specifiche per blacklist note
+    if (strpos($dnsbl, 'spamhaus') !== false) {
+        return interpretSpamhausResponse($response);
     }
     
-    // Interpretazione generica basata sull'ultimo ottetto
+    if (strpos($dnsbl, 'barracuda') !== false) {
+        return 'Listed in Barracuda Reputation Block List';
+    }
+    
+    if (strpos($dnsbl, 'spamcop') !== false) {
+        return 'Listed in SpamCop Block List';
+    }
+    
+    if (strpos($dnsbl, 'sorbs') !== false) {
+        return interpretSorbsResponse($response);
+    }
+    
+    // Default
+    return 'Listed (Response: ' . $response . ')';
+}
+
+/**
+ * Interpreta risposta Spamhaus
+ * 
+ * @param string $response Risposta
+ * @return string Descrizione
+ */
+function interpretSpamhausResponse($response) {
+    $parts = explode('.', $response);
+    $code = end($parts);
+    
+    switch ($code) {
+        case '2':
+            return 'Listed in Spamhaus SBL (Spam source)';
+        case '3':
+            return 'Listed in Spamhaus CSS (Snowshoe spam)';
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+            return 'Listed in Spamhaus XBL (Exploited/Compromised)';
+        case '9':
+            return 'Listed in Spamhaus DROP/EDROP';
+        case '10':
+        case '11':
+            return 'Listed in Spamhaus PBL (Policy Block)';
+        default:
+            return 'Listed in Spamhaus (Code: ' . $code . ')';
+    }
+}
+
+/**
+ * Interpreta risposta SORBS
+ * 
+ * @param string $response Risposta
+ * @return string Descrizione
+ */
+function interpretSorbsResponse($response) {
     $parts = explode('.', $response);
     $last_octet = end($parts);
     
@@ -545,29 +601,49 @@ function calculateBlacklistStatistics($results) {
                 'ip' => $ip,
                 'source' => $stats['source'],
                 'listings' => $stats['listings'],
-                'percentage' => round(($stats['listings'] / $unique_blacklists) * 100, 1)
+                'percentage' => round(($stats['listings'] / $unique_blacklists) * 100, 1),
+                'blacklists' => $stats['blacklists']
             );
         }
     }
     
+    // Ordina per numero di listing
     usort($most_listed_ips, function($a, $b) {
         return $b['listings'] - $a['listings'];
     });
     
-    // Aggiungi alle statistiche
+    // Blacklist più severe
+    $strict_blacklists = array();
+    foreach ($blacklist_statistics as $bl_name => $count) {
+        if ($count > 0) {
+            $strict_blacklists[] = array(
+                'name' => $bl_name,
+                'listings' => $count,
+                'percentage' => round(($count / $total_ips) * 100, 1)
+            );
+        }
+    }
+    
+    // Ordina per severità
+    usort($strict_blacklists, function($a, $b) {
+        return $b['listings'] - $a['listings'];
+    });
+    
+    // Aggiungi statistiche
     $results['statistics']['total_ips'] = $total_ips;
     $results['statistics']['unique_blacklists'] = $unique_blacklists;
-    $results['statistics']['ip_statistics'] = $ip_statistics;
-    $results['statistics']['blacklist_statistics'] = $blacklist_statistics;
     $results['statistics']['most_listed_ips'] = array_slice($most_listed_ips, 0, 5);
+    $results['statistics']['strict_blacklists'] = array_slice($strict_blacklists, 0, 10);
+    $results['statistics']['listing_percentage'] = $total_ips > 0 ? 
+        round(($results['statistics']['total_listings'] / ($total_ips * $unique_blacklists)) * 100, 2) : 0;
     
     return $results;
 }
 
 /**
- * Calcola la reputazione basata sui risultati blacklist
+ * Calcola score di reputazione
  * 
- * @param array $results Risultati
+ * @param array $results Risultati blacklist
  * @return array Risultati con reputazione
  */
 function calculateReputation($results) {
@@ -575,244 +651,202 @@ function calculateReputation($results) {
     $total_listings = $results['statistics']['total_listings'];
     
     if ($total_checks == 0) {
+        $results['reputation']['score'] = 0;
+        $results['reputation']['rating'] = 'Unknown';
+        $results['reputation']['color'] = 'gray';
         return $results;
     }
     
-    // Calcola percentuale pulita
-    $clean_percentage = (($total_checks - $total_listings) / $total_checks) * 100;
-    $score = round($clean_percentage);
+    // Calcola percentuale di listing
+    $listing_percentage = ($total_listings / $total_checks) * 100;
+    
+    // Score basato su percentuale inversa
+    $score = 100 - $listing_percentage;
+    $score = max(0, min(100, round($score)));
     
     // Determina rating e colore
-    if ($score == 100) {
-        $rating = 'Eccellente';
-        $color = 'success';
-        $description = 'Nessuna presenza in blacklist rilevata';
-    } elseif ($score >= 95) {
-        $rating = 'Ottima';
-        $color = 'success';
-        $description = 'Presenza minima in blacklist';
-    } elseif ($score >= 90) {
-        $rating = 'Buona';
-        $color = 'info';
-        $description = 'Alcune presenze in blacklist minori';
-    } elseif ($score >= 80) {
-        $rating = 'Discreta';
-        $color = 'warning';
-        $description = 'Presenza moderata in blacklist';
+    if ($score >= 95) {
+        $rating = 'Excellent';
+        $color = 'green';
+    } elseif ($score >= 85) {
+        $rating = 'Good';
+        $color = 'lightgreen';
     } elseif ($score >= 70) {
-        $rating = 'Sufficiente';
-        $color = 'warning';
-        $description = 'Diverse presenze in blacklist';
+        $rating = 'Fair';
+        $color = 'yellow';
     } elseif ($score >= 50) {
-        $rating = 'Scarsa';
-        $color = 'error';
-        $description = 'Molte presenze in blacklist';
+        $rating = 'Poor';
+        $color = 'orange';
     } else {
-        $rating = 'Critica';
-        $color = 'error';
-        $description = 'Presenza critica in blacklist';
+        $rating = 'Critical';
+        $color = 'red';
     }
     
-    $results['reputation'] = array(
-        'score' => $score,
-        'rating' => $rating,
-        'color' => $color,
-        'description' => $description,
-        'clean_percentage' => round($clean_percentage, 2),
-        'listed_percentage' => round(100 - $clean_percentage, 2)
-    );
+    // Aggiorna reputazione
+    $results['reputation']['score'] = $score;
+    $results['reputation']['rating'] = $rating;
+    $results['reputation']['color'] = $color;
+    $results['reputation']['listing_percentage'] = round($listing_percentage, 2);
     
     // Aggiungi raccomandazioni
-    $results['recommendations'] = getBlacklistRecommendations($results);
+    $results['reputation']['recommendations'] = getReputationRecommendations($score, $results);
     
     return $results;
 }
 
 /**
- * Genera raccomandazioni basate sui risultati
+ * Genera raccomandazioni basate sulla reputazione
  * 
- * @param array $results Risultati blacklist
+ * @param int $score Score reputazione
+ * @param array $results Risultati completi
  * @return array Raccomandazioni
  */
-function getBlacklistRecommendations($results) {
+function getReputationRecommendations($score, $results) {
     $recommendations = array();
     
-    if ($results['reputation']['score'] == 100) {
+    if ($score < 95 && $results['statistics']['total_listings'] > 0) {
+        $recommendations[] = array(
+            'type' => 'warning',
+            'message' => 'Alcuni IP sono presenti in blacklist',
+            'action' => 'Verifica la configurazione email e richiedi la rimozione dalle blacklist'
+        );
+    }
+    
+    if ($score < 70) {
+        $recommendations[] = array(
+            'type' => 'critical',
+            'message' => 'Reputazione compromessa',
+            'action' => 'Contatta urgentemente il tuo provider per risolvere i problemi di reputazione'
+        );
+    }
+    
+    // Raccomandazioni specifiche per tipo di blacklist
+    foreach ($results['listings'] as $listing) {
+        if (strpos($listing['blacklist'], 'Spamhaus') !== false) {
+            $recommendations[] = array(
+                'type' => 'info',
+                'message' => 'Presente in Spamhaus',
+                'action' => 'Visita www.spamhaus.org per richiedere la rimozione'
+            );
+            break;
+        }
+    }
+    
+    if ($score == 100) {
         $recommendations[] = array(
             'type' => 'success',
-            'message' => 'Ottimo lavoro! Gli IP del dominio hanno una reputazione pulita.',
-            'action' => 'Continua a monitorare regolarmente per mantenere questa reputazione.'
-        );
-        return $recommendations;
-    }
-    
-    // Analizza i pattern di listing
-    $listing_patterns = analyzeListingPatterns($results);
-    
-    // Raccomandazioni per tipo di blacklist
-    if (isset($listing_patterns['spam']) && $listing_patterns['spam'] > 0) {
-        $recommendations[] = array(
-            'type' => 'error',
-            'message' => 'IP listati in blacklist anti-spam.',
-            'action' => 'Verifica che il server non stia inviando spam. Controlla log email e configurazione.'
+            'message' => 'Reputazione eccellente',
+            'action' => 'Mantieni le buone pratiche di invio email'
         );
     }
     
-    if (isset($listing_patterns['proxy']) && $listing_patterns['proxy'] > 0) {
-        $recommendations[] = array(
-            'type' => 'warning',
-            'message' => 'IP identificati come proxy aperti.',
-            'action' => 'Verifica la configurazione del server e chiudi eventuali proxy aperti.'
-        );
-    }
-    
-    if (isset($listing_patterns['dynamic']) && $listing_patterns['dynamic'] > 0) {
-        $recommendations[] = array(
-            'type' => 'info',
-            'message' => 'IP identificati come dinamici/residenziali.',
-            'action' => 'Per server email, considera l\'uso di IP statici business.'
-        );
-    }
-    
-    // Raccomandazioni per blacklist specifiche
-    $critical_blacklists = array('Spamhaus', 'SpamCop', 'Barracuda');
-    foreach ($results['listings'] as $listing) {
-        foreach ($critical_blacklists as $critical) {
-            if (stripos($listing['blacklist'], $critical) !== false) {
-                $recommendations[] = array(
-                    'type' => 'error',
-                    'message' => "Presenza in {$critical} - blacklist ad alto impatto.",
-                    'action' => "Priorità alta: richiedi rimozione da {$critical}. Visita il loro sito per la procedura."
-                );
-                break 2;
-            }
-        }
-    }
-    
-    // Raccomandazione generale
-    if ($results['reputation']['score'] < 90) {
-        $recommendations[] = array(
-            'type' => 'warning',
-            'message' => 'La reputazione IP necessita di miglioramento.',
-            'action' => 'Implementa SPF, DKIM e DMARC. Monitora i log per attività sospette.'
-        );
-    }
-    
-    // Link utili per delisting
-    if (count($results['listings']) > 0) {
-        $recommendations[] = array(
-            'type' => 'info',
-            'message' => 'Procedure di rimozione disponibili.',
-            'action' => 'Visita i siti delle blacklist per richiedere la rimozione. Risolvi prima la causa del listing.'
-        );
-    }
-    
-    return $recommendations;
+    return array_unique($recommendations, SORT_REGULAR);
 }
 
 /**
- * Analizza i pattern di listing
+ * Formatta risultati blacklist per output
  * 
  * @param array $results Risultati
- * @return array Pattern identificati
+ * @return array Risultati formattati
  */
-function analyzeListingPatterns($results) {
-    $patterns = array(
-        'spam' => 0,
-        'proxy' => 0,
-        'dynamic' => 0,
-        'compromised' => 0,
-        'other' => 0
+function formatBlacklistResults($results) {
+    $formatted = array(
+        'summary' => array(
+            'checked' => count($results['ips_checked']),
+            'listed' => $results['statistics']['total_listings'],
+            'clean' => $results['statistics']['total_checks'] - $results['statistics']['total_listings'],
+            'reputation_score' => $results['reputation']['score'],
+            'reputation_rating' => $results['reputation']['rating']
+        ),
+        'issues' => array(),
+        'clean_ips' => array()
     );
     
+    // Raggruppa per IP
+    $ip_issues = array();
     foreach ($results['listings'] as $listing) {
-        $reason = strtolower($listing['reason']);
-        
-        if (strpos($reason, 'spam') !== false) {
-            $patterns['spam']++;
-        } elseif (strpos($reason, 'proxy') !== false || strpos($reason, 'relay') !== false) {
-            $patterns['proxy']++;
-        } elseif (strpos($reason, 'dynamic') !== false || strpos($reason, 'residential') !== false) {
-            $patterns['dynamic']++;
-        } elseif (strpos($reason, 'compromised') !== false || strpos($reason, 'exploited') !== false) {
-            $patterns['compromised']++;
-        } else {
-            $patterns['other']++;
+        if (!isset($ip_issues[$listing['ip']])) {
+            $ip_issues[$listing['ip']] = array(
+                'ip' => $listing['ip'],
+                'source' => $listing['source'],
+                'blacklists' => array()
+            );
         }
+        $ip_issues[$listing['ip']]['blacklists'][] = $listing['blacklist'];
     }
     
-    return $patterns;
+    $formatted['issues'] = array_values($ip_issues);
+    
+    // IP puliti
+    $clean_ips = array();
+    foreach ($results['ips_checked'] as $ip => $source) {
+        $is_clean = true;
+        foreach ($results['listings'] as $listing) {
+            if ($listing['ip'] == $ip) {
+                $is_clean = false;
+                break;
+            }
+        }
+        if ($is_clean) {
+            $clean_ips[] = $ip;
+        }
+    }
+    $formatted['clean_ips'] = $clean_ips;
+    
+    return $formatted;
 }
 
 /**
- * Genera report blacklist per export
+ * Genera report blacklist
  * 
  * @param array $results Risultati blacklist
- * @return array Report formattato
+ * @return array Report
  */
 function generateBlacklistReport($results) {
     $report = array(
-        'executive_summary' => array(
-            'domain' => $results['domain'],
-            'check_date' => $results['check_time'],
-            'reputation_score' => $results['reputation']['score'],
-            'reputation_rating' => $results['reputation']['rating'],
-            'total_ips_checked' => $results['statistics']['total_ips'],
-            'total_blacklists_checked' => $results['statistics']['unique_blacklists'],
-            'total_listings' => $results['statistics']['total_listings']
-        ),
-        'ip_details' => array(),
-        'blacklist_details' => array(),
-        'recommendations' => $results['recommendations']
+        'timestamp' => date('Y-m-d H:i:s'),
+        'domain' => $results['domain'],
+        'executive_summary' => '',
+        'detailed_findings' => array(),
+        'recommendations' => array(),
+        'technical_details' => array()
     );
     
-    // Dettagli per IP
-    foreach ($results['statistics']['ip_statistics'] as $ip => $stats) {
-        $report['ip_details'][] = array(
-            'ip' => $ip,
-            'hostname' => $stats['source'],
-            'listings' => $stats['listings'],
-            'status' => $stats['listings'] == 0 ? 'Clean' : 'Listed',
-            'blacklists' => $stats['blacklists']
+    // Executive Summary
+    if ($results['reputation']['score'] >= 95) {
+        $report['executive_summary'] = 'Il dominio ha un\'eccellente reputazione. Nessun problema rilevato.';
+    } elseif ($results['reputation']['score'] >= 70) {
+        $report['executive_summary'] = 'Il dominio ha una buona reputazione con alcuni problemi minori.';
+    } else {
+        $report['executive_summary'] = 'Il dominio ha seri problemi di reputazione che richiedono attenzione immediata.';
+    }
+    
+    // Detailed Findings
+    if (!empty($results['listings'])) {
+        $report['detailed_findings'][] = array(
+            'finding' => 'IP presenti in blacklist',
+            'severity' => 'high',
+            'details' => sprintf(
+                '%d IP su %d totali sono presenti in una o più blacklist',
+                count($results['statistics']['most_listed_ips']),
+                count($results['ips_checked'])
+            )
         );
     }
     
-    // Dettagli per blacklist
-    foreach ($results['statistics']['blacklist_statistics'] as $bl_name => $count) {
-        if ($count > 0) {
-            $report['blacklist_details'][] = array(
-                'blacklist' => $bl_name,
-                'listings' => $count,
-                'severity' => getBlacklistSeverity($bl_name)
-            );
-        }
+    // Recommendations
+    if (!empty($results['reputation']['recommendations'])) {
+        $report['recommendations'] = $results['reputation']['recommendations'];
     }
+    
+    // Technical Details
+    $report['technical_details'] = array(
+        'ips_checked' => array_keys($results['ips_checked']),
+        'blacklists_checked' => $results['blacklists_checked'],
+        'check_duration' => $results['statistics']['check_duration'] . 'ms',
+        'listing_details' => $results['listings']
+    );
     
     return $report;
-}
-
-/**
- * Determina la severità di una blacklist
- * 
- * @param string $blacklist Nome blacklist
- * @return string Livello severità
- */
-function getBlacklistSeverity($blacklist) {
-    $high_severity = array('Spamhaus', 'SpamCop', 'Barracuda', 'SURBL', 'URIBL');
-    $medium_severity = array('SORBS', 'CBL', 'PSBL', 'Manitu');
-    
-    foreach ($high_severity as $pattern) {
-        if (stripos($blacklist, $pattern) !== false) {
-            return 'High';
-        }
-    }
-    
-    foreach ($medium_severity as $pattern) {
-        if (stripos($blacklist, $pattern) !== false) {
-            return 'Medium';
-        }
-    }
-    
-    return 'Low';
 }
 ?>
