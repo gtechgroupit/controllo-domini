@@ -94,8 +94,13 @@ $breadcrumb_data = getBreadcrumb(isset($page_name) ? $page_name : 'Home');
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
     
-    <!-- CSS -->
-    <link href="/assets/css/style.css?v=<?php echo filemtime(ABSPATH . 'assets/css/style.css'); ?>" rel="stylesheet">
+    <!-- CSS - PERCORSO SEMPLIFICATO -->
+    <?php 
+    $css_file = '/assets/css/style.css';
+    $css_path = ABSPATH . 'assets/css/style.css';
+    $css_version = file_exists($css_path) ? filemtime($css_path) : time();
+    ?>
+    <link href="<?php echo $css_file; ?>?v=<?php echo $css_version; ?>" rel="stylesheet" type="text/css">
     
     <!-- CSS Libraries -->
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
