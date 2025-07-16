@@ -273,9 +273,6 @@ function getWhoisInfo($domain, $debug = false) {
             }
         }
     }
-    }
-    }
-    }
     
     // Se non abbiamo nameserver dal WHOIS, prova a prenderli dai record DNS NS
     if (empty($info['nameservers'])) {
@@ -303,10 +300,8 @@ function getWhoisInfo($domain, $debug = false) {
     if (isset($GLOBALS['debug_mode']) && $GLOBALS['debug_mode'] && $whois_data) {
         $info['_debug'] = substr($whois_data, 0, 500) . '...';
     }
-    }
     
     return $info;
-}
 }
 
 // Funzione per ottenere WHOIS via socket diretta
