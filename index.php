@@ -1,10 +1,10 @@
 <?php
 /**
- * DNS Mapper Tool - Premium Edition
- * Advanced DNS analysis tool with stunning visual design
+ * DNS Mapper Tool - Enterprise Edition
+ * Advanced DNS analysis with cloud service detection and WHOIS lookup
  * 
  * @author G Tech Group
- * @version 3.0
+ * @version 4.0
  */
 
 // Headers per evitare problemi di cache e sicurezza
@@ -23,26 +23,147 @@ function measureDnsResponseTime($domain) {
     return round(($end - $start) * 1000, 2); // in millisecondi
 }
 
-// Funzione per ottenere informazioni whois base
-function getBasicWhoisInfo($domain) {
+// Funzione migliorata per ottenere informazioni WHOIS
+function getWhoisInfo($domain) {
     $info = array(
-        'registrar' => 'N/A',
-        'created' => 'N/A',
-        'expires' => 'N/A',
-        'status' => 'Active'
+        'registrar' => 'Non disponibile',
+        'created' => 'Non disponibile',
+        'expires' => 'Non disponibile',
+        'status' => 'Active',
+        'owner' => 'Non disponibile',
+        'registrant_country' => 'Non disponibile'
     );
     
-    // Qui potresti implementare una vera query whois
-    // Per ora restituiamo dati simulati per demo
+    // Tentativo di query WHOIS usando shell_exec se disponibile
+    if (function_exists('shell_exec') && !in_array('shell_exec', explode(',', ini_get('disable_functions')))) {
+        $whois_output = @shell_exec("whois " . escapeshellarg($domain) . " 2>&1");
+        
+        if ($whois_output) {
+            // Parse registrar
+            if (preg_match('/Registrar:\s*(.+)/i', $whois_output, $matches)) {
+                $info['registrar'] = trim($matches[1]);
+            }
+            
+            // Parse creation date
+            if (preg_match('/Creation Date:\s*(.+)|Created:\s*(.+)/i', $whois_output, $matches)) {
+                $date = trim($matches[1] ?: $matches[2]);
+                $info['created'] = date('d/m/Y', strtotime($date));
+            }
+            
+            // Parse expiry date
+            if (preg_match('/Expiry Date:\s*(.+)|Expires:\s*(.+)|Registry Expiry Date:\s*(.+)/i', $whois_output, $matches)) {
+                $date = trim($matches[1] ?: $matches[2] ?: $matches[3]);
+                $info['expires'] = date('d/m/Y', strtotime($date));
+            }
+            
+            // Parse registrant
+            if (preg_match('/Registrant Name:\s*(.+)|Registrant:\s*(.+)/i', $whois_output, $matches)) {
+                $info['owner'] = trim($matches[1] ?: $matches[2]);
+            }
+            
+            // Parse country
+            if (preg_match('/Registrant Country:\s*(.+)/i', $whois_output, $matches)) {
+                $info['registrant_country'] = trim($matches[1]);
+            }
+        }
+    }
+    
     return $info;
 }
 
+// Funzione per identificare servizi cloud dai record DNS
+function identifyCloudServices($dns_results) {
+    $services = array();
+    
+    // Check Microsoft 365
+    $ms365_indicators = array(
+        'mx' => array('outlook.com', 'mail.protection.outlook.com'),
+        'txt' => array('MS=', 'v=spf1 include:spf.protection.outlook.com'),
+        'cname' => array('autodiscover.outlook.com', 'enterpriseregistration.windows.net', 'enterpriseenrollment.manage.microsoft.com')
+    );
+    
+    // Check Google Workspace
+    $google_indicators = array(
+        'mx' => array('aspmx.l.google.com', 'alt1.aspmx.l.google.com', 'alt2.aspmx.l.google.com'),
+        'txt' => array('google-site-verification=', 'v=spf1 include:_spf.google.com'),
+        'cname' => array('ghs.google.com', 'googlehosted.com')
+    );
+    
+    // Analizza record MX per Microsoft 365
+    if (isset($dns_results['MX'])) {
+        foreach ($dns_results['MX'] as $mx) {
+            foreach ($ms365_indicators['mx'] as $indicator) {
+                if (stripos($mx['target'], $indicator) !== false) {
+                    $services['microsoft365'] = array(
+                        'detected' => true,
+                        'confidence' => 'high',
+                        'details' => 'Record MX Microsoft 365 rilevato: ' . $mx['target']
+                    );
+                    break 2;
+                }
+            }
+        }
+    }
+    
+    // Analizza record MX per Google Workspace
+    if (isset($dns_results['MX'])) {
+        foreach ($dns_results['MX'] as $mx) {
+            foreach ($google_indicators['mx'] as $indicator) {
+                if (stripos($mx['target'], $indicator) !== false) {
+                    $services['google_workspace'] = array(
+                        'detected' => true,
+                        'confidence' => 'high',
+                        'details' => 'Record MX Google Workspace rilevato: ' . $mx['target']
+                    );
+                    break 2;
+                }
+            }
+        }
+    }
+    
+    // Analizza record TXT
+    if (isset($dns_results['TXT'])) {
+        foreach ($dns_results['TXT'] as $txt) {
+            $txt_value = $txt['txt'];
+            
+            // Microsoft 365
+            foreach ($ms365_indicators['txt'] as $indicator) {
+                if (stripos($txt_value, $indicator) !== false) {
+                    if (!isset($services['microsoft365'])) {
+                        $services['microsoft365'] = array(
+                            'detected' => true,
+                            'confidence' => 'medium',
+                            'details' => 'Configurazione Microsoft 365 rilevata'
+                        );
+                    }
+                }
+            }
+            
+            // Google Workspace
+            foreach ($google_indicators['txt'] as $indicator) {
+                if (stripos($txt_value, $indicator) !== false) {
+                    if (!isset($services['google_workspace'])) {
+                        $services['google_workspace'] = array(
+                            'detected' => true,
+                            'confidence' => 'medium',
+                            'details' => 'Configurazione Google Workspace rilevata'
+                        );
+                    }
+                }
+            }
+        }
+    }
+    
+    return $services;
+}
+
 // Funzione per analizzare la salute del dominio
-function analyzeDomainHealth($dns_results) {
+function analyzeDomainHealth($dns_results, $cloud_services) {
     $health = array(
         'score' => 0,
         'issues' => array(),
-        'suggestions' => array()
+        'suggestions' => array(),
+        'positives' => array()
     );
     
     $max_score = 100;
@@ -53,6 +174,8 @@ function analyzeDomainHealth($dns_results) {
         $current_score -= 20;
         $health['issues'][] = "Nessun record A trovato";
         $health['suggestions'][] = "Aggiungi almeno un record A per il tuo dominio";
+    } else {
+        $health['positives'][] = "✓ Record A configurato correttamente";
     }
     
     // Controlla MX records per email
@@ -60,6 +183,15 @@ function analyzeDomainHealth($dns_results) {
         $current_score -= 15;
         $health['issues'][] = "Nessun record MX configurato";
         $health['suggestions'][] = "Configura i record MX per ricevere email";
+    } else {
+        $health['positives'][] = "✓ Record MX configurati (" . count($dns_results['MX']) . " server)";
+        
+        // Bonus per servizi cloud
+        if (isset($cloud_services['microsoft365'])) {
+            $health['positives'][] = "✓ Microsoft 365 configurato";
+        } elseif (isset($cloud_services['google_workspace'])) {
+            $health['positives'][] = "✓ Google Workspace configurato";
+        }
     }
     
     // Controlla NS records
@@ -67,22 +199,51 @@ function analyzeDomainHealth($dns_results) {
         $current_score -= 10;
         $health['issues'][] = "Solo " . count($dns_results['NS']) . " nameserver configurato";
         $health['suggestions'][] = "Usa almeno 2 nameserver per ridondanza";
+    } else {
+        $health['positives'][] = "✓ Nameserver ridondanti configurati";
     }
     
     // Controlla SPF record
     $has_spf = false;
+    $has_dmarc = false;
+    $has_dkim = false;
+    
     if (isset($dns_results['TXT'])) {
         foreach ($dns_results['TXT'] as $txt) {
             if (strpos($txt['txt'], 'v=spf1') !== false) {
                 $has_spf = true;
-                break;
+            }
+            if (strpos($txt['txt'], 'v=DMARC1') !== false) {
+                $has_dmarc = true;
+            }
+            if (strpos($txt['txt'], 'v=DKIM1') !== false || strpos($txt['txt'], 'k=rsa') !== false) {
+                $has_dkim = true;
             }
         }
     }
+    
     if (!$has_spf) {
         $current_score -= 10;
         $health['issues'][] = "Nessun record SPF trovato";
         $health['suggestions'][] = "Aggiungi un record SPF per migliorare la deliverability email";
+    } else {
+        $health['positives'][] = "✓ Record SPF configurato";
+    }
+    
+    if (!$has_dmarc) {
+        $current_score -= 5;
+        $health['suggestions'][] = "Considera l'aggiunta di un record DMARC per maggiore protezione";
+    } else {
+        $health['positives'][] = "✓ Record DMARC configurato";
+    }
+    
+    if ($has_dkim) {
+        $health['positives'][] = "✓ DKIM configurato";
+    }
+    
+    // Controlla HTTPS (CAA records)
+    if (isset($dns_results['CAA']) && !empty($dns_results['CAA'])) {
+        $health['positives'][] = "✓ Record CAA configurati per sicurezza SSL";
     }
     
     $health['score'] = max(0, $current_score);
@@ -90,7 +251,7 @@ function analyzeDomainHealth($dns_results) {
 }
 
 // Funzione per formattare i risultati DNS con più dettagli
-function formatDnsRecord($type, $records) {
+function formatDnsRecord($type, $records, $cloud_services = array()) {
     $output = "";
     if (!empty($records)) {
         $icon_map = array(
@@ -101,7 +262,8 @@ function formatDnsRecord($type, $records) {
             'TXT' => '📝',
             'NS' => '🖥️',
             'SOA' => '👑',
-            'SRV' => '🔧'
+            'SRV' => '🔧',
+            'CAA' => '🔐'
         );
         
         $icon = isset($icon_map[$type]) ? $icon_map[$type] : '📌';
@@ -121,6 +283,7 @@ function formatDnsRecord($type, $records) {
             $host = isset($record['host']) ? htmlspecialchars($record['host']) : '-';
             $ttl = isset($record['ttl']) ? formatTTL($record['ttl']) : '-';
             $info = '';
+            $row_class = 'dns-row';
             
             switch($type) {
                 case 'A':
@@ -129,46 +292,101 @@ function formatDnsRecord($type, $records) {
                             (isset($record['ipv6']) ? htmlspecialchars($record['ipv6']) : '-');
                     $info = '<span class="info-badge">IPv' . ($type == 'A' ? '4' : '6') . '</span>';
                     break;
+                    
                 case 'MX':
                     $value = isset($record['target']) ? htmlspecialchars($record['target']) : '-';
                     $info = '<span class="priority-badge">Priority: ' . $record['pri'] . '</span>';
+                    
+                    // Identifica servizi cloud
+                    if (stripos($value, 'outlook.com') !== false || stripos($value, 'protection.outlook.com') !== false) {
+                        $info .= ' <span class="info-badge microsoft">Microsoft 365</span>';
+                        $row_class .= ' highlight-microsoft';
+                    } elseif (stripos($value, 'google.com') !== false) {
+                        $info .= ' <span class="info-badge google">Google Workspace</span>';
+                        $row_class .= ' highlight-google';
+                    }
                     break;
+                    
                 case 'TXT':
                     $txt_value = isset($record['txt']) ? $record['txt'] : '-';
-                    $value = '<span class="txt-record">' . htmlspecialchars(substr($txt_value, 0, 100)) . 
-                            (strlen($txt_value) > 100 ? '...' : '') . '</span>';
+                    $value = '<span class="txt-record">' . htmlspecialchars($txt_value) . '</span>';
+                    
+                    // Identifica tipo di record TXT
                     if (strpos($txt_value, 'v=spf1') !== false) {
                         $info = '<span class="info-badge spf">SPF</span>';
-                    } elseif (strpos($txt_value, 'v=DKIM1') !== false) {
+                        if (strpos($txt_value, 'protection.outlook.com') !== false) {
+                            $info .= ' <span class="info-badge microsoft">Microsoft 365</span>';
+                        } elseif (strpos($txt_value, '_spf.google.com') !== false) {
+                            $info .= ' <span class="info-badge google">Google</span>';
+                        }
+                    } elseif (strpos($txt_value, 'v=DKIM1') !== false || strpos($txt_value, 'k=rsa') !== false) {
                         $info = '<span class="info-badge dkim">DKIM</span>';
                     } elseif (strpos($txt_value, 'v=DMARC1') !== false) {
                         $info = '<span class="info-badge dmarc">DMARC</span>';
+                    } elseif (strpos($txt_value, 'MS=') !== false) {
+                        $info = '<span class="info-badge microsoft">Microsoft Verification</span>';
+                    } elseif (strpos($txt_value, 'google-site-verification=') !== false) {
+                        $info = '<span class="info-badge google">Google Verification</span>';
+                    } elseif (strpos($txt_value, 'facebook-domain-verification=') !== false) {
+                        $info = '<span class="info-badge facebook">Facebook</span>';
                     }
                     break;
+                    
                 case 'NS':
                 case 'CNAME':
                     $value = isset($record['target']) ? htmlspecialchars($record['target']) : '-';
+                    
+                    // Identifica CNAME specifici
+                    if ($type == 'CNAME') {
+                        if (stripos($value, 'outlook.com') !== false) {
+                            $info = '<span class="info-badge microsoft">Microsoft 365</span>';
+                        } elseif (stripos($value, 'google.com') !== false || stripos($value, 'googlehosted.com') !== false) {
+                            $info = '<span class="info-badge google">Google</span>';
+                        } elseif (stripos($host, 'autodiscover') !== false) {
+                            $info = '<span class="info-badge">Autodiscover</span>';
+                        } elseif (stripos($host, 'mail') !== false || stripos($host, 'webmail') !== false) {
+                            $info = '<span class="info-badge">Email Service</span>';
+                        }
+                    }
                     break;
+                    
                 case 'SOA':
                     $value = isset($record['mname']) ? 
                         "<div class='soa-details'>" .
                         "<span class='soa-item'><strong>Primary NS:</strong> " . htmlspecialchars($record['mname']) . "</span>" .
                         "<span class='soa-item'><strong>Email:</strong> " . htmlspecialchars(str_replace('.', '@', $record['rname'])) . "</span>" .
                         "<span class='soa-item'><strong>Serial:</strong> " . $record['serial'] . "</span>" .
+                        "<span class='soa-item'><strong>Refresh:</strong> " . formatTTL($record['refresh']) . "</span>" .
+                        "<span class='soa-item'><strong>Retry:</strong> " . formatTTL($record['retry']) . "</span>" .
+                        "<span class='soa-item'><strong>Expire:</strong> " . formatTTL($record['expire']) . "</span>" .
                         "</div>" : '-';
                     $info = '<span class="info-badge">Authority</span>';
                     break;
+                    
                 case 'SRV':
                     $value = isset($record['target']) ? 
                         htmlspecialchars($record['target']) . ':' . $record['port'] : '-';
                     $info = '<span class="priority-badge">Priority: ' . $record['pri'] . 
                             ', Weight: ' . $record['weight'] . '</span>';
+                    
+                    // Identifica servizi SRV comuni
+                    if (stripos($host, '_sip') !== false) {
+                        $info .= ' <span class="info-badge">SIP/VoIP</span>';
+                    } elseif (stripos($host, '_xmpp') !== false) {
+                        $info .= ' <span class="info-badge">XMPP/Jabber</span>';
+                    }
                     break;
+                    
+                case 'CAA':
+                    $value = isset($record['value']) ? htmlspecialchars($record['value']) : '-';
+                    $info = '<span class="info-badge">Certificate Authority</span>';
+                    break;
+                    
                 default:
                     $value = print_r($record, true);
             }
             
-            $output .= "<tr class='dns-row'><td class='host-cell'>{$host}</td><td class='ttl-cell'>{$ttl}</td><td class='value-cell'>{$value}</td><td class='info-cell'>{$info}</td></tr>\n";
+            $output .= "<tr class='{$row_class}'><td class='host-cell'>{$host}</td><td class='ttl-cell'>{$ttl}</td><td class='value-cell'>{$value}</td><td class='info-cell'>{$info}</td></tr>\n";
         }
         
         $output .= "</tbody></table></div></div>\n";
@@ -189,49 +407,139 @@ function formatTTL($seconds) {
     }
 }
 
-// Funzione principale per ottenere tutti i record DNS
+// Funzione migliorata per ottenere TUTTI i record DNS
 function getAllDnsRecords($domain) {
     $results = array();
     $errors = array();
     
-    // Lista dei tipi di record DNS da verificare
-    $record_types = array(
-        'A' => DNS_A,
-        'AAAA' => DNS_AAAA,
-        'CNAME' => DNS_CNAME,
-        'MX' => DNS_MX,
-        'TXT' => DNS_TXT,
-        'NS' => DNS_NS,
-        'SOA' => DNS_SOA,
-        'SRV' => DNS_SRV,
-        'CAA' => DNS_CAA
-    );
+    // Prova prima con il dominio così com'è
+    $domains_to_check = array($domain);
     
-    foreach ($record_types as $type => $constant) {
+    // Aggiungi www se non presente
+    if (strpos($domain, 'www.') !== 0) {
+        $domains_to_check[] = 'www.' . $domain;
+    }
+    
+    // Rimuovi www se presente per controllare il dominio root
+    if (strpos($domain, 'www.') === 0) {
+        $domains_to_check[] = substr($domain, 4);
+    }
+    
+    foreach ($domains_to_check as $check_domain) {
+        // Usa DNS_ALL per ottenere TUTTI i record possibili
         try {
-            $records = @dns_get_record($domain, $constant);
-            if ($records !== false && !empty($records)) {
-                $results[$type] = $records;
+            $all_records = @dns_get_record($check_domain, DNS_ALL);
+            
+            if ($all_records !== false && !empty($all_records)) {
+                // Organizza i record per tipo
+                foreach ($all_records as $record) {
+                    if (isset($record['type'])) {
+                        $type = $record['type'];
+                        if (!isset($results[$type])) {
+                            $results[$type] = array();
+                        }
+                        
+                        // Evita duplicati
+                        $is_duplicate = false;
+                        foreach ($results[$type] as $existing) {
+                            if (json_encode($existing) == json_encode($record)) {
+                                $is_duplicate = true;
+                                break;
+                            }
+                        }
+                        
+                        if (!$is_duplicate) {
+                            $results[$type][] = $record;
+                        }
+                    }
+                }
             }
         } catch (Exception $e) {
-            $errors[] = "Errore nel recupero record {$type}: " . $e->getMessage();
+            $errors[] = "Errore nel recupero record per {$check_domain}: " . $e->getMessage();
         }
-    }
-    
-    // Se non trova nulla, prova anche con www
-    if (empty($results) && strpos($domain, 'www.') !== 0) {
-        $www_domain = 'www.' . $domain;
-        foreach ($record_types as $type => $constant) {
+        
+        // Prova anche record specifici per maggiore affidabilità
+        $specific_types = array(
+            'A' => DNS_A,
+            'AAAA' => DNS_AAAA,
+            'CNAME' => DNS_CNAME,
+            'MX' => DNS_MX,
+            'TXT' => DNS_TXT,
+            'NS' => DNS_NS,
+            'SOA' => DNS_SOA,
+            'SRV' => DNS_SRV,
+            'CAA' => DNS_CAA
+        );
+        
+        foreach ($specific_types as $type => $constant) {
             try {
-                $records = @dns_get_record($www_domain, $constant);
+                $records = @dns_get_record($check_domain, $constant);
                 if ($records !== false && !empty($records)) {
-                    $results[$type] = $records;
+                    if (!isset($results[$type])) {
+                        $results[$type] = array();
+                    }
+                    
+                    foreach ($records as $record) {
+                        // Evita duplicati
+                        $is_duplicate = false;
+                        foreach ($results[$type] as $existing) {
+                            if (json_encode($existing) == json_encode($record)) {
+                                $is_duplicate = true;
+                                break;
+                            }
+                        }
+                        
+                        if (!$is_duplicate) {
+                            $results[$type][] = $record;
+                        }
+                    }
                 }
             } catch (Exception $e) {
-                // Ignora errori per www
+                // Ignora errori per tipi specifici
             }
         }
     }
+    
+    // Controlla anche sottodomini comuni per servizi
+    $common_subdomains = array(
+        'autodiscover', 'mail', 'webmail', 'smtp', 'imap', 'pop', 'ftp',
+        'cpanel', 'webdisk', 'ns1', 'ns2', '_dmarc', '_domainkey'
+    );
+    
+    foreach ($common_subdomains as $subdomain) {
+        $check_domain = $subdomain . '.' . $domain;
+        try {
+            $records = @dns_get_record($check_domain, DNS_ALL);
+            if ($records !== false && !empty($records)) {
+                foreach ($records as $record) {
+                    if (isset($record['type'])) {
+                        $type = $record['type'];
+                        if (!isset($results[$type])) {
+                            $results[$type] = array();
+                        }
+                        
+                        // Evita duplicati
+                        $is_duplicate = false;
+                        foreach ($results[$type] as $existing) {
+                            if (json_encode($existing) == json_encode($record)) {
+                                $is_duplicate = true;
+                                break;
+                            }
+                        }
+                        
+                        if (!$is_duplicate) {
+                            $results[$type][] = $record;
+                        }
+                    }
+                }
+            }
+        } catch (Exception $e) {
+            // Ignora errori per sottodomini
+        }
+    }
+    
+    // Ordina i risultati
+    ksort($results);
     
     return array('records' => $results, 'errors' => $errors);
 }
@@ -243,6 +551,7 @@ $error_message = '';
 $response_time = 0;
 $domain_health = null;
 $whois_info = null;
+$cloud_services = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
     $domain = trim($_POST['domain']);
@@ -269,11 +578,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
             if (empty($dns_results['records'])) {
                 $error_message = 'Nessun record DNS trovato per questo dominio o il dominio non esiste.';
             } else {
-                // Analizza la salute del dominio
-                $domain_health = analyzeDomainHealth($dns_results['records']);
+                // Identifica servizi cloud
+                $cloud_services = identifyCloudServices($dns_results['records']);
                 
-                // Ottieni info whois base
-                $whois_info = getBasicWhoisInfo($domain);
+                // Analizza la salute del dominio
+                $domain_health = analyzeDomainHealth($dns_results['records'], $cloud_services);
+                
+                // Ottieni info whois
+                $whois_info = getWhoisInfo($domain);
             }
         }
     }
@@ -285,7 +597,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>DNS Check Premium - G Tech Group</title>
+    <title>DNS Check Enterprise - G Tech Group</title>
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -312,6 +624,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
             --warning: #f59e0b;
             --info: #3b82f6;
             --purple: #8b5cf6;
+            --microsoft: #00BCF2;
+            --google: #4285F4;
+            --facebook: #1877F2;
             --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12);
             --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
             --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.12);
@@ -474,24 +789,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
         
         .nav-links a:hover::after {
             width: 100%;
-        }
-        
-        .theme-toggle {
-            background: var(--gray-light);
-            border: none;
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: var(--transition);
-        }
-        
-        .theme-toggle:hover {
-            background: var(--gray-medium);
-            transform: rotate(180deg);
         }
         
         /* Hero Section */
@@ -675,14 +972,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
             height: 300px;
         }
         
-        .submit-btn:active {
-            transform: translateY(-1px);
-        }
-        
         /* Stats Cards */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 20px;
             margin-bottom: 40px;
         }
@@ -735,6 +1028,148 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
         .stat-label {
             color: var(--gray-dark);
             font-size: 1rem;
+        }
+        
+        /* WHOIS Section */
+        .whois-section {
+            background: white;
+            padding: 40px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            margin-bottom: 40px;
+        }
+        
+        .whois-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid var(--gray-medium);
+        }
+        
+        .whois-icon {
+            font-size: 36px;
+        }
+        
+        .whois-title {
+            font-family: 'Poppins', sans-serif;
+            font-size: 2rem;
+            color: var(--secondary);
+            flex: 1;
+        }
+        
+        .whois-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+        }
+        
+        .whois-item {
+            padding: 20px;
+            background: var(--gray-light);
+            border-radius: var(--radius-sm);
+            border-left: 4px solid var(--primary);
+        }
+        
+        .whois-label {
+            font-size: 0.9rem;
+            color: var(--gray-dark);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 8px;
+        }
+        
+        .whois-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--secondary);
+        }
+        
+        /* Cloud Services Section */
+        .cloud-services {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 40px;
+            border-radius: var(--radius);
+            margin-bottom: 40px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .cloud-services::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: pulse 4s ease-in-out infinite;
+        }
+        
+        .cloud-header {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .cloud-icon {
+            font-size: 48px;
+        }
+        
+        .cloud-content {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .cloud-title {
+            font-family: 'Poppins', sans-serif;
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+        
+        .cloud-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+        
+        .cloud-card {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 25px;
+            border-radius: var(--radius-sm);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transition: var(--transition);
+        }
+        
+        .cloud-card:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-3px);
+        }
+        
+        .cloud-service-name {
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.3rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .service-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.3);
         }
         
         /* Domain Health */
@@ -813,10 +1248,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
         
         .health-item.issue {
             border-left-color: var(--error);
+            background: rgba(239, 68, 68, 0.05);
         }
         
         .health-item.suggestion {
             border-left-color: var(--warning);
+            background: rgba(245, 158, 11, 0.05);
+        }
+        
+        .health-item.positive {
+            border-left-color: var(--success);
+            background: rgba(16, 185, 129, 0.05);
         }
         
         .health-item h4 {
@@ -1003,6 +1445,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
             transform: scaleY(1);
         }
         
+        .dns-row.highlight-microsoft {
+            background: rgba(0, 188, 242, 0.05);
+        }
+        
+        .dns-row.highlight-google {
+            background: rgba(66, 133, 244, 0.05);
+        }
+        
         /* Cell styles */
         .host-cell {
             font-weight: 600;
@@ -1035,6 +1485,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.05em;
+            margin: 2px;
         }
         
         .info-badge {
@@ -1052,6 +1503,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
         
         .info-badge.dmarc {
             background: var(--purple);
+        }
+        
+        .info-badge.microsoft {
+            background: var(--microsoft);
+        }
+        
+        .info-badge.google {
+            background: var(--google);
+        }
+        
+        .info-badge.facebook {
+            background: var(--facebook);
         }
         
         .priority-badge {
@@ -1390,7 +1853,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
             }
             
             .info-grid,
-            .tips-grid {
+            .tips-grid,
+            .whois-grid,
+            .cloud-grid {
                 grid-template-columns: 1fr;
             }
             
@@ -1433,13 +1898,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
     <!-- Navigation -->
     <nav id="navbar">
         <div class="nav-container">
-            <a href="#" class="logo">DNS Check Pro</a>
+            <a href="#" class="logo">DNS Check Enterprise</a>
             <div class="nav-links">
                 <a href="#home">Home</a>
                 <a href="#features">Funzionalità</a>
                 <a href="#tips">Consigli</a>
                 <a href="#about">Chi Siamo</a>
-                <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
             </div>
             <button class="mobile-menu-btn">☰</button>
         </div>
@@ -1448,8 +1912,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
     <!-- Hero Section -->
     <section class="hero" id="home">
         <div class="hero-content">
-            <h1>DNS Check Premium</h1>
-            <p class="hero-subtitle">Analisi completa e professionale dei record DNS con insights avanzati</p>
+            <h1>DNS Check Enterprise</h1>
+            <p class="hero-subtitle">Analisi completa DNS con rilevamento servizi cloud e dati WHOIS</p>
         </div>
     </section>
     
@@ -1474,7 +1938,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
                         </div>
                     </div>
                     <button type="submit" class="submit-btn" id="submitBtn">
-                        <span>Avvia Analisi DNS</span>
+                        <span>Avvia Analisi Completa</span>
                     </button>
                 </form>
                 
@@ -1511,7 +1975,86 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
                     <div class="stat-value"><?php echo $whois_info['status']; ?></div>
                     <div class="stat-label">Stato dominio</div>
                 </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📅</div>
+                    <div class="stat-value"><?php echo $whois_info['expires']; ?></div>
+                    <div class="stat-label">Scadenza dominio</div>
+                </div>
             </section>
+            
+            <!-- WHOIS Information Section -->
+            <?php if ($whois_info): ?>
+            <section class="whois-section" data-aos="fade-up">
+                <div class="whois-header">
+                    <span class="whois-icon">👤</span>
+                    <h2 class="whois-title">Informazioni Intestatario Dominio</h2>
+                </div>
+                
+                <div class="whois-grid">
+                    <div class="whois-item">
+                        <div class="whois-label">Intestatario</div>
+                        <div class="whois-value"><?php echo htmlspecialchars($whois_info['owner']); ?></div>
+                    </div>
+                    <div class="whois-item">
+                        <div class="whois-label">Registrar</div>
+                        <div class="whois-value"><?php echo htmlspecialchars($whois_info['registrar']); ?></div>
+                    </div>
+                    <div class="whois-item">
+                        <div class="whois-label">Data Registrazione</div>
+                        <div class="whois-value"><?php echo htmlspecialchars($whois_info['created']); ?></div>
+                    </div>
+                    <div class="whois-item">
+                        <div class="whois-label">Data Scadenza</div>
+                        <div class="whois-value"><?php echo htmlspecialchars($whois_info['expires']); ?></div>
+                    </div>
+                    <div class="whois-item">
+                        <div class="whois-label">Paese Registrante</div>
+                        <div class="whois-value"><?php echo htmlspecialchars($whois_info['registrant_country']); ?></div>
+                    </div>
+                    <div class="whois-item">
+                        <div class="whois-label">Stato</div>
+                        <div class="whois-value"><?php echo htmlspecialchars($whois_info['status']); ?></div>
+                    </div>
+                </div>
+            </section>
+            <?php endif; ?>
+            
+            <!-- Cloud Services Detection -->
+            <?php if (!empty($cloud_services)): ?>
+            <section class="cloud-services" data-aos="fade-up">
+                <div class="cloud-header">
+                    <span class="cloud-icon">☁️</span>
+                    <div class="cloud-content">
+                        <h2 class="cloud-title">Servizi Cloud Rilevati</h2>
+                        <p>Abbiamo identificato i seguenti servizi cloud configurati per questo dominio:</p>
+                    </div>
+                </div>
+                
+                <div class="cloud-grid">
+                    <?php if (isset($cloud_services['microsoft365'])): ?>
+                    <div class="cloud-card">
+                        <div class="cloud-service-name">
+                            <span>🏢</span> Microsoft 365
+                            <span class="service-badge">Enterprise</span>
+                        </div>
+                        <p>Il dominio utilizza Microsoft 365 per email e servizi di produttività. Questo include Exchange Online, Teams, SharePoint e OneDrive.</p>
+                        <p><strong>Dettagli:</strong> <?php echo htmlspecialchars($cloud_services['microsoft365']['details']); ?></p>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <?php if (isset($cloud_services['google_workspace'])): ?>
+                    <div class="cloud-card">
+                        <div class="cloud-service-name">
+                            <span>🔷</span> Google Workspace
+                            <span class="service-badge">Business</span>
+                        </div>
+                        <p>Il dominio è configurato con Google Workspace per email e collaborazione. Include Gmail, Drive, Docs e Meet.</p>
+                        <p><strong>Dettagli:</strong> <?php echo htmlspecialchars($cloud_services['google_workspace']['details']); ?></p>
+                    </div>
+                    <?php endif; ?>
+                </div>
+            </section>
+            <?php endif; ?>
             
             <!-- Domain Health Section -->
             <?php if ($domain_health): ?>
@@ -1531,6 +2074,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
                 </div>
                 
                 <div class="health-details">
+                    <?php if (!empty($domain_health['positives'])): ?>
+                        <?php foreach ($domain_health['positives'] as $positive): ?>
+                        <div class="health-item positive">
+                            <h4><?php echo $positive; ?></h4>
+                        </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                    
                     <?php if (!empty($domain_health['issues'])): ?>
                         <?php foreach ($domain_health['issues'] as $issue): ?>
                         <div class="health-item issue">
@@ -1554,14 +2105,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
             <!-- Results Section -->
             <section class="results-section">
                 <div class="results-header">
-                    <h2>Risultati per <?php echo htmlspecialchars($domain); ?></h2>
+                    <h2>Risultati completi per <?php echo htmlspecialchars($domain); ?></h2>
                     <p>Analisi completata il <?php echo date('d/m/Y \a\l\l\e H:i:s'); ?></p>
                 </div>
                 
                 <div class="results-body">
                     <?php
+                    // Ordine preferito per la visualizzazione
+                    $preferred_order = array('A', 'AAAA', 'CNAME', 'MX', 'TXT', 'NS', 'SOA', 'SRV', 'CAA');
+                    
+                    // Mostra prima i record nell'ordine preferito
+                    foreach ($preferred_order as $type) {
+                        if (isset($dns_results['records'][$type])) {
+                            echo formatDnsRecord($type, $dns_results['records'][$type], $cloud_services);
+                        }
+                    }
+                    
+                    // Mostra eventuali altri tipi di record non nell'ordine preferito
                     foreach ($dns_results['records'] as $type => $records) {
-                        echo formatDnsRecord($type, $records);
+                        if (!in_array($type, $preferred_order)) {
+                            echo formatDnsRecord($type, $records, $cloud_services);
+                        }
                     }
                     ?>
                     
@@ -1569,7 +2133,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
                         <div class="message error">
                             <span class="message-icon">⚠️</span>
                             <div>
-                                <h4>Alcuni record non sono stati recuperati:</h4>
+                                <h4>Alcuni record potrebbero non essere stati recuperati:</h4>
                                 <ul style="margin-top: 8px; padding-left: 20px;">
                                     <?php foreach ($dns_results['errors'] as $error): ?>
                                         <li><?php echo htmlspecialchars($error); ?></li>
@@ -1595,17 +2159,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
                 <div class="info-card" data-aos="fade-up" data-aos-delay="100">
                     <div class="info-card-icon">🔒</div>
                     <h3>Sicurezza DNS</h3>
-                    <p>Verifica la presenza di record SPF, DKIM e DMARC per proteggere il tuo dominio da spoofing e phishing. Questi record sono essenziali per la sicurezza delle email.</p>
+                    <p>Verifica la presenza di record SPF, DKIM e DMARC per proteggere il tuo dominio da spoofing e phishing. Identifichiamo automaticamente le configurazioni di sicurezza per Microsoft 365 e Google Workspace.</p>
                 </div>
                 <div class="info-card" data-aos="fade-up" data-aos-delay="200">
-                    <div class="info-card-icon">⚡</div>
-                    <h3>Performance</h3>
-                    <p>Monitora i tempi di risposta DNS e ottimizza la configurazione dei tuoi nameserver per garantire prestazioni ottimali del tuo sito web.</p>
+                    <div class="info-card-icon">☁️</div>
+                    <h3>Rilevamento Cloud</h3>
+                    <p>Identifichiamo automaticamente se il dominio utilizza servizi cloud come Microsoft 365, Google Workspace, o altri provider enterprise. Questo ti aiuta a capire l'infrastruttura IT utilizzata.</p>
                 </div>
                 <div class="info-card" data-aos="fade-up" data-aos-delay="300">
-                    <div class="info-card-icon">📧</div>
-                    <h3>Email Delivery</h3>
-                    <p>Assicurati che i record MX siano configurati correttamente per ricevere email. Verifica anche SPF e DKIM per migliorare la deliverability.</p>
+                    <div class="info-card-icon">👤</div>
+                    <h3>Dati WHOIS</h3>
+                    <p>Accedi alle informazioni sull'intestatario del dominio, data di registrazione e scadenza. Questi dati sono essenziali per la due diligence e la verifica della proprietà del dominio.</p>
                 </div>
             </div>
         </section>
@@ -1615,8 +2179,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
     <section class="tips-section" id="tips">
         <div class="tips-container">
             <div class="tips-header" data-aos="fade-up">
-                <h2>Best Practices DNS</h2>
-                <p>Ottimizza la configurazione DNS del tuo dominio</p>
+                <h2>Best Practices DNS Enterprise</h2>
+                <p>Ottimizza la configurazione DNS per ambienti business</p>
             </div>
             
             <div class="tips-grid">
@@ -1629,9 +2193,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
                 
                 <div class="tip-card" data-aos="fade-up" data-aos-delay="200">
                     <span class="tip-number">02</span>
-                    <div class="tip-icon">⏰</div>
-                    <h3 class="tip-title">TTL Ottimizzato</h3>
-                    <p>Imposta TTL appropriati: bassi (300-600s) durante le migrazioni, alti (3600-86400s) per configurazioni stabili.</p>
+                    <div class="tip-icon">📧</div>
+                    <h3 class="tip-title">Email Authentication</h3>
+                    <p>Implementa SPF, DKIM e DMARC per proteggere il tuo dominio. Essenziale per Microsoft 365 e Google Workspace.</p>
                 </div>
                 
                 <div class="tip-card" data-aos="fade-up" data-aos-delay="300">
@@ -1643,9 +2207,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
                 
                 <div class="tip-card" data-aos="fade-up" data-aos-delay="400">
                     <span class="tip-number">04</span>
-                    <div class="tip-icon">📝</div>
-                    <h3 class="tip-title">Record SPF</h3>
-                    <p>Configura un record SPF per specificare quali server sono autorizzati a inviare email per conto del tuo dominio.</p>
+                    <div class="tip-icon">☁️</div>
+                    <h3 class="tip-title">Cloud Integration</h3>
+                    <p>Verifica regolarmente i record DNS richiesti dai tuoi servizi cloud. Microsoft e Google aggiornano spesso i requisiti.</p>
                 </div>
                 
                 <div class="tip-card" data-aos="fade-up" data-aos-delay="500">
@@ -1657,9 +2221,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
                 
                 <div class="tip-card" data-aos="fade-up" data-aos-delay="600">
                     <span class="tip-number">06</span>
-                    <div class="tip-icon">🚀</div>
-                    <h3 class="tip-title">CDN Integration</h3>
-                    <p>Considera l'uso di un CDN con Anycast DNS per migliorare le prestazioni globali e la resilienza del tuo sito.</p>
+                    <div class="tip-icon">📊</div>
+                    <h3 class="tip-title">Monitoring</h3>
+                    <p>Monitora costantemente i tuoi record DNS per rilevare modifiche non autorizzate o problemi di configurazione.</p>
                 </div>
             </div>
         </div>
@@ -1670,29 +2234,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
         <div class="footer-content">
             <div class="footer-section">
                 <h3>G Tech Group</h3>
-                <p>Leader nell'analisi e ottimizzazione DNS. Forniamo strumenti professionali per la gestione e il monitoraggio delle infrastrutture DNS.</p>
+                <p>Leader nell'analisi enterprise DNS. Forniamo strumenti professionali per la gestione, il monitoraggio e l'ottimizzazione delle infrastrutture DNS aziendali.</p>
             </div>
             <div class="footer-section">
-                <h3>Servizi</h3>
+                <h3>Servizi Enterprise</h3>
                 <p>
-                    <a href="#">Analisi DNS</a><br>
-                    <a href="#">Monitoraggio Real-time</a><br>
-                    <a href="#">Consulenza DNS</a><br>
-                    <a href="#">Migrazione Domini</a>
+                    <a href="#">Analisi DNS Avanzata</a><br>
+                    <a href="#">Rilevamento Servizi Cloud</a><br>
+                    <a href="#">Monitoraggio WHOIS</a><br>
+                    <a href="#">Consulenza DNS Enterprise</a>
                 </p>
             </div>
             <div class="footer-section">
                 <h3>Risorse</h3>
                 <p>
-                    <a href="#">Documentazione</a><br>
-                    <a href="#">Blog Tecnico</a><br>
-                    <a href="#">Case Studies</a><br>
-                    <a href="#">FAQ</a>
+                    <a href="#">Documentazione API</a><br>
+                    <a href="#">Guide Microsoft 365</a><br>
+                    <a href="#">Guide Google Workspace</a><br>
+                    <a href="#">Best Practices DNS</a>
                 </p>
             </div>
         </div>
         <div class="footer-bottom">
-            <p>&copy; <?php echo date('Y'); ?> G Tech Group - DNS Check Premium v3.0</p>
+            <p>&copy; <?php echo date('Y'); ?> G Tech Group - DNS Check Enterprise v4.0</p>
         </div>
     </footer>
     
@@ -1739,12 +2303,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
                 }
             });
         });
-        
-        // Theme toggle (placeholder)
-        function toggleTheme() {
-            // Implementazione tema dark/light
-            alert('Tema dark in arrivo nella prossima versione!');
-        }
         
         // Animate numbers
         function animateValue(element, start, end, duration) {
