@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
+                            http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+    
+    <!-- ===================================================== -->
+    <!-- sitemap.xml - Controllo Domini                       -->
+    <!-- Mappa del sito per i motori di ricerca               -->
+    <!--                                                       -->
+    <!-- @author G Tech Group                                  -->
+    <!-- @website https://controllodomini.it                  -->
+    <!-- @updated 2024-01-15                                   -->
+    <!-- ===================================================== -->
+    
+    <!-- Homepage -->
+    <url>
+        <loc>https://controllodomini.it/</loc>
+        <lastmod>2024-01-15T10:00:00+01:00</lastmod>
+        <changefreq>daily</changefreq>
+        <priority>1.0</priority>
+        <image:image>
+            <image:loc>https://controllodomini.it/assets/images/og-image.jpg</image:loc>
+            <image:title>Controllo Domini - Analisi DNS e WHOIS Professionale</image:title>
+            <image:caption>Strumento gratuito per l'analisi completa di domini, DNS, WHOIS e blacklist</image:caption>
+        </image:image>
+    </url>
+    
+    <!-- Sezioni principali della homepage -->
+    <url>
+        <loc>https://controllodomini.it/#features</loc>
+        <lastmod>2024-01-15T10:00:00+01:00</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    <url>
+        <loc>https://controllodomini.it/#how-it-works</loc>
+        <lastmod>2024-01-15T10:00:00+01:00</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    <url>
+        <loc>https://controllodomini.it/#faq</loc>
+        <lastmod>2024-01-15T10:00:00+01:00</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    <!-- Documentazione API -->
+    <url>
+        <loc>https://controllodomini.it/api-docs</loc>
+        <lastmod>2024-01-10T10:00:00+01:00</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+    </url>
+    
+    <!-- Pagine informative -->
+    <url>
+        <loc>https://controllodomini.it/contatti</loc>
+        <lastmod>2024-01-01T10:00:00+01:00</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.6</priority>
+    </url>
+    
+    <url>
+        <loc>https://controllodomini.it/privacy</loc>
+        <lastmod>2024-01-01T10:00:00+01:00</lastmod>
+        <changefreq>yearly</changefreq>
+        <priority>0.5</priority>
+    </url>
+    
+    <url>
+        <loc>https://controllodomini.it/termini</loc>
+        <lastmod>2024-01-01T10:00:00+01:00</lastmod>
+        <changefreq>yearly</changefreq>
+        <priority>0.5</priority>
+    </url>
+    
+    <url>
+        <loc>https://controllodomini.it/cookie-policy</loc>
+        <lastmod>2024-01-01T10:00:00+01:00</lastmod>
+        <changefreq>yearly</changefreq>
+        <priority>0.5</priority>
+    </url>
+    
+    <!-- Guide e documentazione -->
+    <url>
+        <loc>https://controllodomini.it/guide/dns</loc>
+        <lastmod>2024-01-10T10:00:00+01:00</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+    </url>
+    
+    <url>
+        <loc>https://controllodomini.it/guide/spf-dkim-dmarc</loc>
+        <lastmod>2024-01-10T10:00:00+01:00</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+    </url>
+    
+    <url>
+        <loc>https://controllodomini.it/guide/microsoft-365</loc>
+        <lastmod>2024-01-10T10:00:00+01:00</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+    </url>
+    
+    <url>
+        <loc>https://controllodomini.it/guide/google-workspace</loc>
+        <lastmod>2024-01-10T10:00:00+01:00</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+    </url>
+    
+    <url>
+        <loc>https://controllodomini.it/guide/blacklist</loc>
+        <lastmod>2024-01-10T10:00:00+01:00</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+    </url>
+    
+    <url>
+        <loc>https://controllodomini.it/guide/whois</loc>
+        <lastmod>2024-01-10T10:00:00+01:00</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+    </url>
+    
+    <!-- Blog (se presente) -->
+    <url>
+        <loc>https://controllodomini.it/blog</loc>
+        <lastmod>2024-01-15T10:00:00+01:00</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.7</priority>
+    </url>
+    
+    <!-- Strumenti aggiuntivi -->
+    <url>
+        <loc>https://controllodomini.it/tools</loc>
+        <lastmod>2024-01-10T10:00:00+01:00</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.6</priority>
+    </url>
+    
+    <url>
+        <loc>https://controllodomini.it/tools/dns-lookup</loc>
+        <lastmod>2024-01-10T10:00:00+01:00</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.6</priority>
+    </url>
+    
+    <url>
+        <loc>https://controllodomini.it/tools/whois-lookup</loc>
+        <lastmod>2024-01-10T10:00:00+01:00</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.6</priority>
+    </url>
+    
+    <url>
+        <loc>https://controllodomini.it/tools/blacklist-check</loc>
+        <lastmod>2024-01-10T10:00:00+01:00</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.6</priority>
+    </url>
+    
+    <url>
+        <loc>https://controllodomini.it/tools/spf-generator</loc>
+        <lastmod>2024-01-10T10:00:00+01:00</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.6</priority>
+    </url>
+    
+    <url>
+        <loc>https://controllodomini.it/tools/dmarc-generator</loc>
+        <lastmod>2024-01-10T10:00:00+01:00</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.6</priority>
+    </url>
+    
+    <!-- Pagine di utilità -->
+    <url>
+        <loc>https://controllodomini.it/changelog</loc>
+        <lastmod>2024-01-15T10:00:00+01:00</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.5</priority>
+    </url>
+    
+    <url>
+        <loc>https://controllodomini.it/status</loc>
+        <lastmod>2024-01-15T10:00:00+01:00</lastmod>
+        <changefreq>daily</changefreq>
+        <priority>0.5</priority>
+    </url>
+    
+    <!-- Esempi di analisi (opzionale, per SEO) -->
+    <url>
+        <loc>https://controllodomini.it/esempio/google-com</loc>
+        <lastmod>2024-01-10T10:00:00+01:00</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.4</priority>
+    </url>
+    
+    <url>
+        <loc>https://controllodomini.it/esempio/microsoft-com</loc>
+        <lastmod>2024-01-10T10:00:00+01:00</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.4</priority>
+    </url>
+    
+    <url>
+        <loc>https://controllodomini.it/esempio/amazon-com</loc>
+        <lastmod>2024-01-10T10:00:00+01:00</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.4</priority>
+    </url>
+    
+</urlset>
