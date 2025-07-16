@@ -1,0 +1,28 @@
+{
+    "name": "Controllo Domini",
+    "short_name": "DNS Check",
+    "description": "Strumento professionale per l'analisi completa di domini, DNS, WHOIS e blacklist",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#f8f9fa",
+    "theme_color": "#5d8ecf",
+    "orientation": "portrait-primary",
+    "icons": [
+        {
+            "src": "/assets/images/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/assets/images/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "categories": ["utilities", "productivity"],
+    "lang": "it-IT",
+    "dir": "ltr",
+    "prefer_related_applications": false
+}
