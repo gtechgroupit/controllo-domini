@@ -1,141 +1,38 @@
 # =====================================================
-# .htaccess - Controllo Domini
-# Configurazione Apache per sicurezza e performance
-# 
-# @author G Tech Group
-# @website https://controllodomini.it
+# .htaccess - Controllo Domini (VERSIONE MINIMA)
 # =====================================================
 
 # Abilita il motore di rewrite
 RewriteEngine On
 
-# =====================================================
-# SICUREZZA
-# =====================================================
-
 # Disabilita la visualizzazione degli indici delle directory
 Options -Indexes
 
-# Proteggi file sensibili
-<FilesMatch "^(\.htaccess|\.htpasswd|\.env|composer\.(json|lock)|package\.(json|lock)|\.git.*)$">
-    Require all denied
+# MIME Types per CSS
+<IfModule mod_mime.c>
+    AddType text/css .css
+    AddType application/javascript .js
+</IfModule>
+
+# Consenti accesso a tutti i file nelle cartelle pubbliche
+<FilesMatch "\.(css|js|jpg|jpeg|png|gif|svg|webp|ico|woff|woff2|ttf|otf|pdf|xml|txt|webmanifest)$">
+    Require all granted
 </FilesMatch>
 
-# =====================================================
-# PERFORMANCE
-# =====================================================
-
-# Abilita compressione GZIP
-<IfModule mod_deflate.c>
-    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript
-    AddOutputFilterByType DEFLATE application/javascript application/x-javascript
-    AddOutputFilterByType DEFLATE application/xml application/xhtml+xml application/rss+xml
-    AddOutputFilterByType DEFLATE application/json
-    AddOutputFilterByType DEFLATE font/truetype font/opentype image/svg+xml
-</IfModule>
-
-# Browser Caching
-<IfModule mod_expires.c>
-    ExpiresActive On
-    
-    # Immagini
-    ExpiresByType image/jpeg "access plus 1 year"
-    ExpiresByType image/jpg "access plus 1 year"
-    ExpiresByType image/png "access plus 1 year"
-    ExpiresByType image/gif "access plus 1 year"
-    ExpiresByType image/svg+xml "access plus 1 year"
-    ExpiresByType image/x-icon "access plus 1 year"
-    ExpiresByType image/webp "access plus 1 year"
-    
-    # CSS e JavaScript
-    ExpiresByType text/css "access plus 1 month"
-    ExpiresByType application/javascript "access plus 1 month"
-    ExpiresByType application/x-javascript "access plus 1 month"
-    
-    # Font
-    ExpiresByType font/truetype "access plus 1 year"
-    ExpiresByType font/opentype "access plus 1 year"
-    ExpiresByType application/x-font-woff "access plus 1 year"
-    ExpiresByType application/font-woff2 "access plus 1 year"
-    
-    # Altri
-    ExpiresByType text/html "access plus 0 seconds"
-    ExpiresByType application/json "access plus 0 seconds"
-    ExpiresByType application/xml "access plus 0 seconds"
-    ExpiresByType text/xml "access plus 0 seconds"
-</IfModule>
-
-# ETags
-<IfModule mod_headers.c>
-    Header unset ETag
-</IfModule>
-FileETag None
-
-# Headers di sicurezza
-<IfModule mod_headers.c>
-    # Protezione XSS
-    Header set X-XSS-Protection "1; mode=block"
-    
-    # Previeni MIME type sniffing
-    Header set X-Content-Type-Options "nosniff"
-    
-    # Clickjacking protection
-    Header set X-Frame-Options "SAMEORIGIN"
-    
-    # Referrer Policy
-    Header set Referrer-Policy "strict-origin-when-cross-origin"
-    
-    # Content Security Policy base
-    Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com"
-    
-    # Permissions Policy
-    Header set Permissions-Policy "geolocation=(), microphone=(), camera=()"
-</IfModule>
-
-# =====================================================
-# URL REWRITING
-# =====================================================
-
-# IMPORTANTE: Escludi tutti i file statici dalle regole di rewrite
+# Regole di base per sicurezza
 <IfModule mod_rewrite.c>
-    # Non processare file CSS, JS, immagini, font
-    RewriteCond %{REQUEST_URI} \.(css|js|jpg|jpeg|png|gif|svg|webp|ico|woff|woff2|ttf|otf|pdf|xml|txt|webmanifest)$ [NC]
-    RewriteRule ^.*$ - [L]
+    # Proteggi file sensibili
+    RewriteRule ^(\.htaccess|\.htpasswd|\.env|composer\.json|composer\.lock)$ - [F,L]
     
-    # Non processare cartella assets
-    RewriteRule ^assets/ - [L]
+    # Proteggi directory sensibili
+    RewriteRule ^(config|includes|templates|vendor|node_modules|\.git)/ - [F,L]
     
-    # Forza HTTPS (solo se non siamo già in HTTPS)
-    RewriteCond %{HTTPS} !=on
-    RewriteCond %{HTTP:X-Forwarded-Proto} !https
-    RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
-    
-    # Rimuovi www
-    RewriteCond %{HTTP_HOST} ^www\.(.+)$ [NC]
-    RewriteRule ^(.*)$ https://%1/$1 [R=301,L]
-    
-    # Proteggi le directory di sistema
-    RewriteRule ^(config|includes|templates|vendor|node_modules|\.git)/.*$ - [F,L]
-    
-    # Blocca accesso diretto ai file PHP nelle directory protette
-    RewriteCond %{REQUEST_URI} ^/(config|includes|templates|vendor)/.*\.php$ [NC]
-    RewriteRule .* - [F,L]
-    
-    # Rimuovi trailing slash tranne che per le directory
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^(.+)/$ /$1 [R=301,L]
-    
-    # File e directory esistenti - servili direttamente
+    # Se il file o directory esiste, servilo direttamente
     RewriteCond %{REQUEST_FILENAME} -f [OR]
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule ^ - [L]
     
-    # API endpoints
-    RewriteRule ^api/?$ /api/index.php [L]
-    RewriteRule ^api/analyze/?$ /api/analyze.php [L]
-    RewriteRule ^api/newsletter/subscribe/?$ /api/newsletter.php [L]
-    
-    # Pagine statiche senza .php
+    # Pretty URLs per file PHP
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME}.php -f
@@ -147,120 +44,5 @@ ErrorDocument 404 /404.php
 ErrorDocument 403 /403.php
 ErrorDocument 500 /500.php
 
-# =====================================================
-# PHP SETTINGS
-# =====================================================
-
-# PHP settings (se consentito dal server)
-<IfModule mod_php7.c>
-    php_value upload_max_filesize 10M
-    php_value post_max_size 10M
-    php_value max_execution_time 30
-    php_value max_input_time 30
-    php_value memory_limit 128M
-    
-    # Sicurezza PHP
-    php_flag display_errors Off
-    php_flag log_errors On
-    php_flag expose_php Off
-    php_flag allow_url_fopen Off
-    php_flag allow_url_include Off
-</IfModule>
-
-# =====================================================
-# HOTLINK PROTECTION
-# =====================================================
-
-# Proteggi immagini da hotlinking
-<IfModule mod_rewrite.c>
-    RewriteCond %{HTTP_REFERER} !^$
-    RewriteCond %{HTTP_REFERER} !^https?://(www\.)?dnscheck\.gtechgroup\.it [NC]
-    RewriteCond %{HTTP_REFERER} !^https?://(www\.)?controllodomini\.it [NC]
-    RewriteCond %{HTTP_REFERER} !^https?://(www\.)?google\. [NC]
-    RewriteCond %{HTTP_REFERER} !^https?://(www\.)?bing\. [NC]
-    RewriteRule \.(jpg|jpeg|png|gif|svg|webp)$ - [F,L]
-</IfModule>
-
-# =====================================================
-# CHARSET E LINGUA
-# =====================================================
-
-# Set charset di default
+# Charset
 AddDefaultCharset UTF-8
-
-# Lingua di default
-DefaultLanguage it
-
-# =====================================================
-# MIME TYPES
-# =====================================================
-
-<IfModule mod_mime.c>
-    # CSS
-    AddType text/css css
-    
-    # JavaScript
-    AddType application/javascript js
-    
-    # JSON
-    AddType application/json json
-    
-    # Webmanifest
-    AddType application/manifest+json webmanifest
-    
-    # Font
-    AddType font/woff2 woff2
-    AddType font/woff woff
-    AddType font/ttf ttf
-    AddType font/opentype otf
-    
-    # Immagini
-    AddType image/svg+xml svg
-    AddType image/webp webp
-    
-    # Video
-    AddType video/mp4 mp4
-    AddType video/webm webm
-</IfModule>
-
-# =====================================================
-# RATE LIMITING (se mod_evasive è disponibile)
-# =====================================================
-
-<IfModule mod_evasive20.c>
-    DOSHashTableSize 3097
-    DOSPageCount 5
-    DOSSiteCount 100
-    DOSPageInterval 1
-    DOSSiteInterval 1
-    DOSBlockingPeriod 600
-</IfModule>
-
-# =====================================================
-# CUSTOM RULES
-# =====================================================
-
-# Blocca user agents sospetti
-<IfModule mod_rewrite.c>
-    RewriteCond %{HTTP_USER_AGENT} (nikto|sqlmap|scan|nessus|havij|acunetix) [NC,OR]
-    RewriteCond %{HTTP_USER_AGENT} (binlar|casper|cmsworldmap|comodo|diavol|dotbot) [NC]
-    RewriteRule ^(.*)$ - [F,L]
-</IfModule>
-
-# Blocca richieste sospette
-<IfModule mod_rewrite.c>
-    RewriteCond %{QUERY_STRING} (base64_encode|globals|mosconfig) [NC,OR]
-    RewriteCond %{QUERY_STRING} (boot\.ini|etc/passwd|self/environ) [NC,OR]
-    RewriteCond %{QUERY_STRING} (<script|javascript:) [NC]
-    RewriteRule ^(.*)$ - [F,L]
-</IfModule>
-
-# =====================================================
-# MAINTENANCE MODE (decommentare quando necessario)
-# =====================================================
-
-# <IfModule mod_rewrite.c>
-#     RewriteCond %{REMOTE_ADDR} !^123\.456\.789\.000
-#     RewriteCond %{REQUEST_URI} !^/maintenance\.html$
-#     RewriteRule ^(.*)$ /maintenance.html [R=302,L]
-# </IfModule>
