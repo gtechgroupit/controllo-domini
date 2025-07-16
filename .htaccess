@@ -18,28 +18,19 @@ Options -Indexes
 
 # Proteggi file sensibili
 <FilesMatch "^(\.htaccess|\.htpasswd|\.env|composer\.(json|lock)|package\.(json|lock)|\.git.*)$">
-    Order Allow,Deny
-    Deny from all
+    Require all denied
 </FilesMatch>
 
-# Proteggi le directory di sistema dal listing
+# Proteggi le directory di sistema
 <IfModule mod_rewrite.c>
     RewriteRule ^(config|includes|templates|vendor|node_modules|\.git)/.*$ - [F,L]
 </IfModule>
 
 # Blocca accesso diretto ai file PHP nelle directory protette
-<FilesMatch "\.php$">
-    <If "%{REQUEST_URI} =~ m#^/(config|includes|templates|vendor)/.*\.php$#">
-        Order Allow,Deny
-        Deny from all
-    </If>
-</FilesMatch>
-
-# Consenti accesso a tutti i file statici nelle directory pubbliche
-<FilesMatch "\.(css|js|jpg|jpeg|png|gif|svg|webp|ico|woff|woff2|ttf|otf|pdf|xml|txt|webmanifest)$">
-    Order Allow,Deny
-    Allow from all
-</FilesMatch>
+<IfModule mod_rewrite.c>
+    RewriteCond %{REQUEST_URI} ^/(config|includes|templates|vendor)/.*\.php$ [NC]
+    RewriteRule .* - [F,L]
+</IfModule>
 
 # Headers di sicurezza
 <IfModule mod_headers.c>
@@ -249,7 +240,7 @@ DefaultLanguage it
 # CUSTOM RULES
 # =====================================================
 
-# Blocca user agents sospetti (meno aggressivo)
+# Blocca user agents sospetti
 <IfModule mod_rewrite.c>
     RewriteCond %{HTTP_USER_AGENT} (nikto|sqlmap|scan|nessus|havij|acunetix) [NC,OR]
     RewriteCond %{HTTP_USER_AGENT} (binlar|casper|cmsworldmap|comodo|diavol|dotbot) [NC]
@@ -263,16 +254,6 @@ DefaultLanguage it
     RewriteCond %{QUERY_STRING} (<script|javascript:) [NC]
     RewriteRule ^(.*)$ - [F,L]
 </IfModule>
-
-# =====================================================
-# ACCESSO SPECIFICO PER DIRECTORY
-# =====================================================
-
-# Consenti accesso alla directory assets e sottocartelle
-<Directory ~ "^/var/www/vhosts/dnscheck.gtechgroup.it/httpdocs/assets">
-    Order Allow,Deny
-    Allow from all
-</Directory>
 
 # =====================================================
 # MAINTENANCE MODE (decommentare quando necessario)
