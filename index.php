@@ -274,6 +274,8 @@ function getWhoisInfo($domain, $debug = false) {
         }
     }
     }
+    }
+    }
     
     // Se non abbiamo nameserver dal WHOIS, prova a prenderli dai record DNS NS
     if (empty($info['nameservers'])) {
