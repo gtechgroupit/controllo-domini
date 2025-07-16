@@ -38,11 +38,6 @@ $analysis_completed = false;
 
 // Gestione del form POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
-    // Verifica CSRF token se implementato
-    // if (!verify_csrf_token($_POST['csrf_token'])) {
-    //     $error_message = 'Sessione scaduta. Ricarica la pagina.';
-    // }
-    
     $domain = trim($_POST['domain']);
     
     // Validazione dominio
@@ -166,9 +161,6 @@ require_once ABSPATH . 'templates/header.php';
                         <small>Inserisci il dominio senza http:// o www</small>
                     </div>
                 </div>
-                
-                <!-- CSRF Token -->
-                <!-- <input type="hidden" name="csrf_token" value="<?php echo generate_csrf_token(); ?>"> -->
                 
                 <button type="submit" class="btn btn-primary btn-lg btn-block submit-btn" id="submitBtn">
                     <span>Avvia Analisi Completa</span>
