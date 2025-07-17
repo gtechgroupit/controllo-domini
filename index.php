@@ -285,221 +285,8 @@ require_once ABSPATH . 'templates/header.php';
     </div>
 </section>
 
-<!-- Features Section -->
-<section id="features" class="features-section">
-    <div class="container">
-        <div class="section-header" data-aos="fade-up">
-            <h2 class="section-title">Funzionalità Complete</h2>
-            <p class="section-subtitle">Analisi professionale con oltre 30 controlli automatici</p>
-        </div>
-        
-        <div class="features-grid">
-            <div class="feature-card" data-aos="fade-up" data-aos-delay="100">
-                <div class="feature-icon">🔍</div>
-                <h3>Analisi DNS Completa</h3>
-                <p>Recupera tutti i record DNS inclusi A, AAAA, MX, TXT, NS, CNAME, SOA, SRV e CAA con informazioni dettagliate.</p>
-            </div>
-            
-            <div class="feature-card" data-aos="fade-up" data-aos-delay="200">
-                <div class="feature-icon">👤</div>
-                <h3>Informazioni WHOIS</h3>
-                <p>Scopri il proprietario del dominio, data di registrazione, scadenza, registrar e stato del dominio.</p>
-            </div>
-            
-            <div class="feature-card" data-aos="fade-up" data-aos-delay="300">
-                <div class="feature-icon">☁️</div>
-                <h3>Rilevamento Cloud</h3>
-                <p>Identifica automaticamente i servizi cloud utilizzati come Microsoft 365, Google Workspace, Cloudflare e altri.</p>
-            </div>
-            
-            <div class="feature-card" data-aos="fade-up" data-aos-delay="400">
-                <div class="feature-icon">🚫</div>
-                <h3>Controllo Blacklist</h3>
-                <p>Verifica se il dominio o i suoi IP sono presenti in blacklist spam con controllo su oltre 50 database.</p>
-            </div>
-            
-            <div class="feature-card" data-aos="fade-up" data-aos-delay="500">
-                <div class="feature-icon">📧</div>
-                <h3>Analisi Email</h3>
-                <p>Controlla la configurazione email con verifica SPF, DKIM, DMARC e identificazione del provider email.</p>
-            </div>
-            
-            <div class="feature-card" data-aos="fade-up" data-aos-delay="600">
-                <div class="feature-icon">🔒</div>
-                <h3>SSL & Sicurezza</h3>
-                <p>Analizza certificato SSL, security headers, DNSSEC, CAA records e DANE/TLSA per una protezione ottimale.</p>
-            </div>
-            
-            <div class="feature-card" data-aos="fade-up" data-aos-delay="700">
-                <div class="feature-icon">🔧</div>
-                <h3>Tecnologie & CMS</h3>
-                <p>Rileva automaticamente CMS, framework, linguaggi di programmazione e tecnologie utilizzate.</p>
-            </div>
-            
-            <div class="feature-card" data-aos="fade-up" data-aos-delay="800">
-                <div class="feature-icon">⚡</div>
-                <h3>Performance & SEO</h3>
-                <p>Analisi performance, controllo robots.txt, sitemap, meta tag social e ottimizzazioni SEO.</p>
-            </div>
-            
-            <div class="feature-card" data-aos="fade-up" data-aos-delay="900">
-                <div class="feature-icon">🔄</div>
-                <h3>Redirect & Porte</h3>
-                <p>Traccia catene di redirect, analizza HTTP headers e scansione porte opzionale.</p>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- How It Works Section -->
-<section id="how-it-works" class="how-it-works-section">
-    <div class="container">
-        <div class="section-header" data-aos="fade-up">
-            <h2 class="section-title">Come Funziona</h2>
-            <p class="section-subtitle">Un processo semplice e veloce in 3 passaggi</p>
-        </div>
-        
-        <div class="steps-container">
-            <div class="step-card" data-aos="fade-right" data-aos-delay="100">
-                <div class="step-number">1</div>
-                <div class="step-content">
-                    <h3>Inserisci il Dominio</h3>
-                    <p>Digita il nome del dominio che vuoi analizzare nel campo di ricerca. Supportiamo tutti i TLD e sottodomini.</p>
-                </div>
-            </div>
-            
-            <div class="step-connector" data-aos="fade-up" data-aos-delay="200">
-                <div class="connector-line"></div>
-            </div>
-            
-            <div class="step-card" data-aos="fade-up" data-aos-delay="300">
-                <div class="step-number">2</div>
-                <div class="step-content">
-                    <h3>Analisi Automatica</h3>
-                    <p>Il sistema esegue automaticamente tutti i controlli: DNS, WHOIS, blacklist, SSL, performance e sicurezza.</p>
-                </div>
-            </div>
-            
-            <div class="step-connector" data-aos="fade-up" data-aos-delay="400">
-                <div class="connector-line"></div>
-            </div>
-            
-            <div class="step-card" data-aos="fade-left" data-aos-delay="500">
-                <div class="step-number">3</div>
-                <div class="step-content">
-                    <h3>Report Completo</h3>
-                    <p>Ricevi un report dettagliato con tutte le informazioni, raccomandazioni e un punteggio di salute del dominio.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- FAQ Section -->
-<section id="faq" class="faq-section">
-    <div class="container">
-        <div class="section-header" data-aos="fade-up">
-            <h2 class="section-title">Domande Frequenti</h2>
-            <p class="section-subtitle">Risposte alle domande più comuni sul nostro servizio</p>
-        </div>
-        
-        <div class="faq-container">
-            <div class="faq-item" data-aos="fade-up" data-aos-delay="100">
-                <button class="faq-question" onclick="toggleFaq(this)">
-                    <span>Cos'è l'analisi DNS e perché è importante?</span>
-                    <span class="faq-icon">+</span>
-                </button>
-                <div class="faq-answer">
-                    <p>L'analisi DNS (Domain Name System) permette di verificare tutti i record associati a un dominio. È importante perché ti consente di controllare la configurazione del tuo sito web, email, sicurezza e identificare eventuali problemi di configurazione che potrebbero impattare la raggiungibilità o la sicurezza del tuo dominio.</p>
-                </div>
-            </div>
-            
-            <div class="faq-item" data-aos="fade-up" data-aos-delay="200">
-                <button class="faq-question" onclick="toggleFaq(this)">
-                    <span>Il servizio è gratuito?</span>
-                    <span class="faq-icon">+</span>
-                </button>
-                <div class="faq-answer">
-                    <p>Sì, il servizio di analisi base è completamente gratuito. Puoi analizzare qualsiasi dominio senza registrazione o costi nascosti. Per utenti con esigenze avanzate, offriamo API professionali con limiti di utilizzo più elevati.</p>
-                </div>
-            </div>
-            
-            <div class="faq-item" data-aos="fade-up" data-aos-delay="300">
-                <button class="faq-question" onclick="toggleFaq(this)">
-                    <span>Quali informazioni posso ottenere dal WHOIS?</span>
-                    <span class="faq-icon">+</span>
-                </button>
-                <div class="faq-answer">
-                    <p>Il WHOIS fornisce informazioni sul proprietario del dominio (se non protette da privacy), date di registrazione e scadenza, registrar utilizzato, nameserver configurati e stato del dominio. Queste informazioni sono utili per verificare la proprietà e monitorare le scadenze.</p>
-                </div>
-            </div>
-            
-            <div class="faq-item" data-aos="fade-up" data-aos-delay="400">
-                <button class="faq-question" onclick="toggleFaq(this)">
-                    <span>Come funziona il controllo blacklist?</span>
-                    <span class="faq-icon">+</span>
-                </button>
-                <div class="faq-answer">
-                    <p>Il controllo blacklist verifica se gli IP associati al dominio sono presenti in liste di spam o blacklist pubbliche. Controlliamo oltre 50 database diversi per assicurarci che il tuo dominio non sia stato segnalato, cosa che potrebbe impattare la deliverability delle email o la reputazione online.</p>
-                </div>
-            </div>
-            
-            <div class="faq-item" data-aos="fade-up" data-aos-delay="500">
-                <button class="faq-question" onclick="toggleFaq(this)">
-                    <span>Posso esportare i risultati dell'analisi?</span>
-                    <span class="faq-icon">+</span>
-                </button>
-                <div class="faq-answer">
-                    <p>Sì, puoi esportare tutti i dati DNS in formato JSON o copiarli negli appunti per utilizzarli in altri strumenti. I risultati completi possono essere salvati per riferimento futuro o condivisi con il tuo team tecnico.</p>
-                </div>
-            </div>
-            
-            <div class="faq-item" data-aos="fade-up" data-aos-delay="600">
-                <button class="faq-question" onclick="toggleFaq(this)">
-                    <span>Quanto spesso dovrei controllare il mio dominio?</span>
-                    <span class="faq-icon">+</span>
-                </button>
-                <div class="faq-answer">
-                    <p>Consigliamo di controllare il tuo dominio almeno una volta al mese per monitorare eventuali cambiamenti non autorizzati, verificare le scadenze e assicurarsi che non ci siano problemi di blacklist. Per domini critici, un controllo settimanale può essere più appropriato.</p>
-                </div>
-            </div>
-            
-            <div class="faq-item" data-aos="fade-up" data-aos-delay="700">
-                <button class="faq-question" onclick="toggleFaq(this)">
-                    <span>Quali tecnologie riuscite a rilevare?</span>
-                    <span class="faq-icon">+</span>
-                </button>
-                <div class="faq-answer">
-                    <p>Il nostro sistema rileva CMS (WordPress, Joomla, Drupal, etc.), e-commerce (WooCommerce, Magento, Shopify), framework (Laravel, React, Angular), server web (Apache, Nginx, IIS), linguaggi di programmazione, CDN, analytics e molte altre tecnologie.</p>
-                </div>
-            </div>
-            
-            <div class="faq-item" data-aos="fade-up" data-aos-delay="800">
-                <button class="faq-question" onclick="toggleFaq(this)">
-                    <span>Come posso migliorare il punteggio di salute del mio dominio?</span>
-                    <span class="faq-icon">+</span>
-                </button>
-                <div class="faq-answer">
-                    <p>Per migliorare il punteggio: configura correttamente SPF, DKIM e DMARC per le email, attiva DNSSEC, usa un certificato SSL valido, implementa security headers, mantieni il dominio fuori dalle blacklist, rinnova il dominio con anticipo e ottimizza le performance DNS.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- CTA Section -->
-<section class="cta-section">
-    <div class="container">
-        <div class="cta-content" data-aos="zoom-in">
-            <h2>Pronto per analizzare il tuo dominio?</h2>
-            <p>Inizia subito con un'analisi completa e gratuita</p>
-            <a href="#domain-check" class="btn btn-cta">Analizza Ora</a>
-        </div>
-    </div>
-</section>
-
 <?php if ($analysis_completed && $dns_results): ?>
-<!-- Results Section -->
+<!-- Results Section - SPOSTATA SUBITO DOPO IL FORM -->
 <section id="results" class="results-section">
     <div class="container">
         <!-- Health Score Overview -->
@@ -1423,6 +1210,219 @@ require_once ABSPATH . 'templates/header.php';
 </section>
 <?php endif; ?>
 
+<!-- Features Section -->
+<section id="features" class="features-section">
+    <div class="container">
+        <div class="section-header" data-aos="fade-up">
+            <h2 class="section-title">Funzionalità Complete</h2>
+            <p class="section-subtitle">Analisi professionale con oltre 30 controlli automatici</p>
+        </div>
+        
+        <div class="features-grid">
+            <div class="feature-card" data-aos="fade-up" data-aos-delay="100">
+                <div class="feature-icon">🔍</div>
+                <h3>Analisi DNS Completa</h3>
+                <p>Recupera tutti i record DNS inclusi A, AAAA, MX, TXT, NS, CNAME, SOA, SRV e CAA con informazioni dettagliate.</p>
+            </div>
+            
+            <div class="feature-card" data-aos="fade-up" data-aos-delay="200">
+                <div class="feature-icon">👤</div>
+                <h3>Informazioni WHOIS</h3>
+                <p>Scopri il proprietario del dominio, data di registrazione, scadenza, registrar e stato del dominio.</p>
+            </div>
+            
+            <div class="feature-card" data-aos="fade-up" data-aos-delay="300">
+                <div class="feature-icon">☁️</div>
+                <h3>Rilevamento Cloud</h3>
+                <p>Identifica automaticamente i servizi cloud utilizzati come Microsoft 365, Google Workspace, Cloudflare e altri.</p>
+            </div>
+            
+            <div class="feature-card" data-aos="fade-up" data-aos-delay="400">
+                <div class="feature-icon">🚫</div>
+                <h3>Controllo Blacklist</h3>
+                <p>Verifica se il dominio o i suoi IP sono presenti in blacklist spam con controllo su oltre 50 database.</p>
+            </div>
+            
+            <div class="feature-card" data-aos="fade-up" data-aos-delay="500">
+                <div class="feature-icon">📧</div>
+                <h3>Analisi Email</h3>
+                <p>Controlla la configurazione email con verifica SPF, DKIM, DMARC e identificazione del provider email.</p>
+            </div>
+            
+            <div class="feature-card" data-aos="fade-up" data-aos-delay="600">
+                <div class="feature-icon">🔒</div>
+                <h3>SSL & Sicurezza</h3>
+                <p>Analizza certificato SSL, security headers, DNSSEC, CAA records e DANE/TLSA per una protezione ottimale.</p>
+            </div>
+            
+            <div class="feature-card" data-aos="fade-up" data-aos-delay="700">
+                <div class="feature-icon">🔧</div>
+                <h3>Tecnologie & CMS</h3>
+                <p>Rileva automaticamente CMS, framework, linguaggi di programmazione e tecnologie utilizzate.</p>
+            </div>
+            
+            <div class="feature-card" data-aos="fade-up" data-aos-delay="800">
+                <div class="feature-icon">⚡</div>
+                <h3>Performance & SEO</h3>
+                <p>Analisi performance, controllo robots.txt, sitemap, meta tag social e ottimizzazioni SEO.</p>
+            </div>
+            
+            <div class="feature-card" data-aos="fade-up" data-aos-delay="900">
+                <div class="feature-icon">🔄</div>
+                <h3>Redirect & Porte</h3>
+                <p>Traccia catene di redirect, analizza HTTP headers e scansione porte opzionale.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- How It Works Section -->
+<section id="how-it-works" class="how-it-works-section">
+    <div class="container">
+        <div class="section-header" data-aos="fade-up">
+            <h2 class="section-title">Come Funziona</h2>
+            <p class="section-subtitle">Un processo semplice e veloce in 3 passaggi</p>
+        </div>
+        
+        <div class="steps-container">
+            <div class="step-card" data-aos="fade-right" data-aos-delay="100">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <h3>Inserisci il Dominio</h3>
+                    <p>Digita il nome del dominio che vuoi analizzare nel campo di ricerca. Supportiamo tutti i TLD e sottodomini.</p>
+                </div>
+            </div>
+            
+            <div class="step-connector" data-aos="fade-up" data-aos-delay="200">
+                <div class="connector-line"></div>
+            </div>
+            
+            <div class="step-card" data-aos="fade-up" data-aos-delay="300">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <h3>Analisi Automatica</h3>
+                    <p>Il sistema esegue automaticamente tutti i controlli: DNS, WHOIS, blacklist, SSL, performance e sicurezza.</p>
+                </div>
+            </div>
+            
+            <div class="step-connector" data-aos="fade-up" data-aos-delay="400">
+                <div class="connector-line"></div>
+            </div>
+            
+            <div class="step-card" data-aos="fade-left" data-aos-delay="500">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <h3>Report Completo</h3>
+                    <p>Ricevi un report dettagliato con tutte le informazioni, raccomandazioni e un punteggio di salute del dominio.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- FAQ Section -->
+<section id="faq" class="faq-section">
+    <div class="container">
+        <div class="section-header" data-aos="fade-up">
+            <h2 class="section-title">Domande Frequenti</h2>
+            <p class="section-subtitle">Risposte alle domande più comuni sul nostro servizio</p>
+        </div>
+        
+        <div class="faq-container">
+            <div class="faq-item" data-aos="fade-up" data-aos-delay="100">
+                <button class="faq-question" onclick="toggleFaq(this)">
+                    <span>Cos'è l'analisi DNS e perché è importante?</span>
+                    <span class="faq-icon">+</span>
+                </button>
+                <div class="faq-answer">
+                    <p>L'analisi DNS (Domain Name System) permette di verificare tutti i record associati a un dominio. È importante perché ti consente di controllare la configurazione del tuo sito web, email, sicurezza e identificare eventuali problemi di configurazione che potrebbero impattare la raggiungibilità o la sicurezza del tuo dominio.</p>
+                </div>
+            </div>
+            
+            <div class="faq-item" data-aos="fade-up" data-aos-delay="200">
+                <button class="faq-question" onclick="toggleFaq(this)">
+                    <span>Il servizio è gratuito?</span>
+                    <span class="faq-icon">+</span>
+                </button>
+                <div class="faq-answer">
+                    <p>Sì, il servizio di analisi base è completamente gratuito. Puoi analizzare qualsiasi dominio senza registrazione o costi nascosti. Per utenti con esigenze avanzate, offriamo API professionali con limiti di utilizzo più elevati.</p>
+                </div>
+            </div>
+            
+            <div class="faq-item" data-aos="fade-up" data-aos-delay="300">
+                <button class="faq-question" onclick="toggleFaq(this)">
+                    <span>Quali informazioni posso ottenere dal WHOIS?</span>
+                    <span class="faq-icon">+</span>
+                </button>
+                <div class="faq-answer">
+                    <p>Il WHOIS fornisce informazioni sul proprietario del dominio (se non protette da privacy), date di registrazione e scadenza, registrar utilizzato, nameserver configurati e stato del dominio. Queste informazioni sono utili per verificare la proprietà e monitorare le scadenze.</p>
+                </div>
+            </div>
+            
+            <div class="faq-item" data-aos="fade-up" data-aos-delay="400">
+                <button class="faq-question" onclick="toggleFaq(this)">
+                    <span>Come funziona il controllo blacklist?</span>
+                    <span class="faq-icon">+</span>
+                </button>
+                <div class="faq-answer">
+                    <p>Il controllo blacklist verifica se gli IP associati al dominio sono presenti in liste di spam o blacklist pubbliche. Controlliamo oltre 50 database diversi per assicurarci che il tuo dominio non sia stato segnalato, cosa che potrebbe impattare la deliverability delle email o la reputazione online.</p>
+                </div>
+            </div>
+            
+            <div class="faq-item" data-aos="fade-up" data-aos-delay="500">
+                <button class="faq-question" onclick="toggleFaq(this)">
+                    <span>Posso esportare i risultati dell'analisi?</span>
+                    <span class="faq-icon">+</span>
+                </button>
+                <div class="faq-answer">
+                    <p>Sì, puoi esportare tutti i dati DNS in formato JSON o copiarli negli appunti per utilizzarli in altri strumenti. I risultati completi possono essere salvati per riferimento futuro o condivisi con il tuo team tecnico.</p>
+                </div>
+            </div>
+            
+            <div class="faq-item" data-aos="fade-up" data-aos-delay="600">
+                <button class="faq-question" onclick="toggleFaq(this)">
+                    <span>Quanto spesso dovrei controllare il mio dominio?</span>
+                    <span class="faq-icon">+</span>
+                </button>
+                <div class="faq-answer">
+                    <p>Consigliamo di controllare il tuo dominio almeno una volta al mese per monitorare eventuali cambiamenti non autorizzati, verificare le scadenze e assicurarsi che non ci siano problemi di blacklist. Per domini critici, un controllo settimanale può essere più appropriato.</p>
+                </div>
+            </div>
+            
+            <div class="faq-item" data-aos="fade-up" data-aos-delay="700">
+                <button class="faq-question" onclick="toggleFaq(this)">
+                    <span>Quali tecnologie riuscite a rilevare?</span>
+                    <span class="faq-icon">+</span>
+                </button>
+                <div class="faq-answer">
+                    <p>Il nostro sistema rileva CMS (WordPress, Joomla, Drupal, etc.), e-commerce (WooCommerce, Magento, Shopify), framework (Laravel, React, Angular), server web (Apache, Nginx, IIS), linguaggi di programmazione, CDN, analytics e molte altre tecnologie.</p>
+                </div>
+            </div>
+            
+            <div class="faq-item" data-aos="fade-up" data-aos-delay="800">
+                <button class="faq-question" onclick="toggleFaq(this)">
+                    <span>Come posso migliorare il punteggio di salute del mio dominio?</span>
+                    <span class="faq-icon">+</span>
+                </button>
+                <div class="faq-answer">
+                    <p>Per migliorare il punteggio: configura correttamente SPF, DKIM e DMARC per le email, attiva DNSSEC, usa un certificato SSL valido, implementa security headers, mantieni il dominio fuori dalle blacklist, rinnova il dominio con anticipo e ottimizza le performance DNS.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA Section -->
+<section class="cta-section">
+    <div class="container">
+        <div class="cta-content" data-aos="zoom-in">
+            <h2>Pronto per analizzare il tuo dominio?</h2>
+            <p>Inizia subito con un'analisi completa e gratuita</p>
+            <a href="#domain-check" class="btn btn-cta">Analizza Ora</a>
+        </div>
+    </div>
+</section>
+
 <!-- Progress indicator durante l'analisi -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -1488,6 +1488,23 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+    
+    // AGGIUNTO: Scroll automatico ai risultati quando l'analisi è completata
+    <?php if ($analysis_completed && $dns_results): ?>
+    // Aspetta che la pagina sia completamente caricata
+    window.addEventListener('load', function() {
+        // Piccolo delay per assicurarsi che tutti gli elementi siano renderizzati
+        setTimeout(function() {
+            const resultsSection = document.getElementById('results');
+            if (resultsSection) {
+                resultsSection.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+        }, 300);
+    });
+    <?php endif; ?>
     
     // Export DNS data
     window.exportDNS = function() {
