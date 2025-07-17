@@ -57,22 +57,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
                 // Inizia l'analisi
                 $analysis_start = microtime(true);
                 
-                // Esegui operazioni in parallelo dove possibile
-                $promises = array();
-                
                 // 1. Misura tempo di risposta DNS
                 $response_time = measureDnsResponseTime($domain);
                 
-                // 2. Recupera tutti i record DNS con timeout
-                $dns_data = getAllDnsRecords($domain, 10); // Timeout di 10 secondi
+                // 2. Recupera tutti i record DNS
+                $dns_data = getAllDnsRecords($domain);
                 $dns_results = $dns_data['records'];
                 
                 if (empty($dns_results)) {
                     $error_message = 'Nessun record DNS trovato per questo dominio. Verifica che il dominio sia attivo.';
                 } else {
-                    // Esegui le seguenti operazioni in modo ottimizzato
-                    
-                    // 3. Analizza servizi cloud (veloce)
+                    // 3. Analizza servizi cloud
                     $cloud_services = identifyCloudServices($dns_results, $domain);
                     
                     // Assicurati che detected sia un array
@@ -80,11 +75,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
                         $cloud_services['detected'] = array();
                     }
                     
-                    // 4. Ottieni informazioni WHOIS con cache
-                    $whois_info = getWhoisInfoCached($domain, isset($_GET['debug']));
+                    // 4. Ottieni informazioni WHOIS
+                    $whois_info = getWhoisInfo($domain, isset($_GET['debug']));
                     
-                    // 5. Controlla blacklist (limita il numero di blacklist per velocità)
-                    $blacklist_results = checkBlacklistsFast($domain);
+                    // 5. Controlla blacklist
+                    $blacklist_results = checkBlacklists($domain);
                     
                     // 6. Analizza configurazione email
                     $email_config = analyzeEmailConfiguration($dns_results);
@@ -102,8 +97,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
                         'response_time' => $response_time
                     ));
                     
-                    // 9. Log analisi per statistiche (asincrono)
-                    logAnalysisAsync($domain, array(
+                    // 9. Log analisi per statistiche
+                    logAnalysis($domain, array(
                         'dns_count' => count($dns_results),
                         'has_mx' => !empty($dns_results['MX']),
                         'has_spf' => isset($email_config['has_spf']) ? $email_config['has_spf'] : false,
@@ -895,61 +890,6 @@ if (!function_exists('getBreadcrumb')) {
             array('name' => 'Home', 'url' => '/'),
             array('name' => $page_name, 'url' => '')
         );
-    }
-}
-
-// Wrapper functions per le versioni ottimizzate
-function getWhoisInfoCached($domain, $debug = false) {
-    // Controlla cache prima
-    $cache_key = 'whois_' . md5($domain);
-    $cached = getCacheData($cache_key, 3600); // Cache per 1 ora
-    
-    if ($cached !== false) {
-        return $cached;
-    }
-    
-    // Se non in cache, recupera
-    $whois_info = getWhoisInfo($domain, $debug);
-    
-    // Salva in cache
-    setCacheData($cache_key, $whois_info);
-    
-    return $whois_info;
-}
-
-function checkBlacklistsFast($domain) {
-    // Usa solo le blacklist più importanti per velocità
-    $priority_blacklists = array(
-        'zen.spamhaus.org',
-        'bl.spamcop.net',
-        'b.barracudacentral.org',
-        'dnsbl.sorbs.net',
-        'dul.dnsbl.sorbs.net'
-    );
-    
-    return checkBlacklistsSubset($domain, $priority_blacklists);
-}
-
-function getAllDnsRecords($domain, $timeout = 10) {
-    // Aggiungi timeout per evitare blocchi
-    $context = stream_context_create(array(
-        'dns' => array(
-            'timeout' => $timeout
-        )
-    ));
-    
-    // Chiama la funzione originale con timeout
-    return getAllDnsRecordsWithContext($domain, $context);
-}
-
-function logAnalysisAsync($domain, $data) {
-    // Log in modo asincrono per non rallentare la risposta
-    // In produzione, potresti usare una coda di job
-    try {
-        logAnalysis($domain, $data);
-    } catch (Exception $e) {
-        // Ignora errori di log per non bloccare l'utente
-        error_log('Errore log analisi: ' . $e->getMessage());
     }
 }
 ?>
