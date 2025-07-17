@@ -6,14 +6,33 @@
  * @version 4.0
  */
 
-require_once 'config/config.php';
-require_once 'includes/functions.php';
-require_once 'includes/dns-functions.php';
+// Definisci ABSPATH se non esiste
+if (!defined('ABSPATH')) {
+    define('ABSPATH', dirname(__FILE__) . '/');
+}
+
+// Includi file di configurazione e funzioni
+if (file_exists(ABSPATH . 'config/config.php')) {
+    require_once ABSPATH . 'config/config.php';
+}
+
+if (file_exists(ABSPATH . 'includes/functions.php')) {
+    require_once ABSPATH . 'includes/functions.php';
+}
+
+if (file_exists(ABSPATH . 'includes/dns-functions.php')) {
+    require_once ABSPATH . 'includes/dns-functions.php';
+}
+
+// Imposta pagina corrente per il menu
+$current_page = 'dns-check';
 
 // Meta tags specifici per questa pagina
-$page_title = "Controllo DNS - Analisi Record DNS | " . APP_NAME;
+$page_title = "Controllo DNS - Analisi Record DNS | " . (defined('APP_NAME') ? APP_NAME : 'Controllo Domini');
 $page_description = "Verifica tutti i record DNS di un dominio: A, AAAA, MX, TXT, CNAME, NS, SOA, SRV, CAA. Strumento gratuito per analisi DNS completa.";
-$canonical_url = APP_URL . "/dns-check";
+$canonical_url = (defined('APP_URL') ? APP_URL : 'https://controllodomini.it') . "/dns-check";
+
+// Resto del codice...
 
 // Variabili per il form
 $domain = '';
