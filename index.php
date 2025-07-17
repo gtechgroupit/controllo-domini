@@ -32,6 +32,39 @@ require_once ABSPATH . 'includes/robots-sitemap.php';
 require_once ABSPATH . 'includes/redirect-analysis.php';
 require_once ABSPATH . 'includes/port-scanner.php';
 
+/**
+ * Safe htmlspecialchars wrapper che gestisce array e valori non-string
+ * 
+ * @param mixed $value Valore da escapare
+ * @param string $default Valore di default se il valore non è una stringa
+ * @return string Stringa escaped
+ */
+function safeHtmlspecialchars($value, $default = '') {
+    if (is_string($value)) {
+        return htmlspecialchars($value);
+    } elseif (is_numeric($value)) {
+        return htmlspecialchars((string)$value);
+    } elseif (is_array($value)) {
+        // Se è un array, prova a estrarre informazioni rilevanti
+        if (isset($value['CN'])) {
+            return htmlspecialchars($value['CN']);
+        } elseif (isset($value['O'])) {
+            return htmlspecialchars($value['O']);
+        } else {
+            // Converti array in stringa formattata
+            $parts = array();
+            foreach ($value as $k => $v) {
+                if (is_string($v)) {
+                    $parts[] = $k . '=' . $v;
+                }
+            }
+            return htmlspecialchars(implode(', ', $parts) ?: $default);
+        }
+    } else {
+        return htmlspecialchars($default);
+    }
+}
+
 // Variabili per la gestione del form
 $domain = '';
 $dns_results = null;
@@ -657,24 +690,7 @@ require_once ABSPATH . 'templates/header.php';
                         <span class="detail-label">Emesso per:</span>
                         <span class="detail-value"><?php 
                             if (isset($ssl_info['details']['subject'])) {
-                                if (is_array($ssl_info['details']['subject'])) {
-                                    // Se è un array, mostra il CN (Common Name) o tutto l'array formattato
-                                    if (isset($ssl_info['details']['subject']['CN'])) {
-                                        echo htmlspecialchars($ssl_info['details']['subject']['CN']);
-                                    } else {
-                                        // Mostra tutti i componenti del subject
-                                        $subject_parts = array();
-                                        foreach ($ssl_info['details']['subject'] as $key => $value) {
-                                            if (is_string($value)) {
-                                                $subject_parts[] = $key . '=' . $value;
-                                            }
-                                        }
-                                        echo htmlspecialchars(implode(', ', $subject_parts));
-                                    }
-                                } else {
-                                    // Se è una stringa, mostrala normalmente
-                                    echo htmlspecialchars($ssl_info['details']['subject']);
-                                }
+                                echo safeHtmlspecialchars($ssl_info['details']['subject'], 'N/A');
                             } else {
                                 echo 'N/A';
                             }
@@ -682,16 +698,34 @@ require_once ABSPATH . 'templates/header.php';
                     </div>
                     <div class="ssl-detail-item">
                         <span class="detail-label">Emesso da:</span>
-                        <span class="detail-value"><?php echo isset($ssl_info['details']['issuer']) ? htmlspecialchars($ssl_info['details']['issuer']) : 'N/A'; ?></span>
+                        <span class="detail-value"><?php 
+                            if (isset($ssl_info['details']['issuer'])) {
+                                echo safeHtmlspecialchars($ssl_info['details']['issuer'], 'N/A');
+                            } else {
+                                echo 'N/A';
+                            }
+                        ?></span>
                     </div>
                     <div class="ssl-detail-item">
                         <span class="detail-label">Valido dal:</span>
-                        <span class="detail-value"><?php echo isset($ssl_info['details']['valid_from']) ? htmlspecialchars($ssl_info['details']['valid_from']) : 'N/A'; ?></span>
+                        <span class="detail-value"><?php 
+                            if (isset($ssl_info['details']['valid_from'])) {
+                                echo safeHtmlspecialchars($ssl_info['details']['valid_from'], 'N/A');
+                            } else {
+                                echo 'N/A';
+                            }
+                        ?></span>
                     </div>
                     <div class="ssl-detail-item">
                         <span class="detail-label">Valido fino al:</span>
                         <span class="detail-value <?php echo (isset($ssl_info['days_until_expiry']) && $ssl_info['days_until_expiry'] < 30) ? 'text-warning' : ''; ?>">
-                            <?php echo isset($ssl_info['details']['valid_to']) ? htmlspecialchars($ssl_info['details']['valid_to']) : 'N/A'; ?>
+                            <?php 
+                            if (isset($ssl_info['details']['valid_to'])) {
+                                echo safeHtmlspecialchars($ssl_info['details']['valid_to'], 'N/A');
+                            } else {
+                                echo 'N/A';
+                            }
+                            ?>
                             <?php if (isset($ssl_info['days_until_expiry']) && $ssl_info['days_until_expiry'] >= 0): ?>
                                 <small>(<?php echo $ssl_info['days_until_expiry']; ?> giorni)</small>
                             <?php endif; ?>
@@ -702,9 +736,11 @@ require_once ABSPATH . 'templates/header.php';
                         <span class="detail-label">Domini alternativi:</span>
                         <span class="detail-value"><?php 
                             if (is_array($ssl_info['details']['san'])) {
-                                echo htmlspecialchars(implode(', ', $ssl_info['details']['san']));
+                                // Filtra solo le stringhe dall'array
+                                $san_strings = array_filter($ssl_info['details']['san'], 'is_string');
+                                echo htmlspecialchars(implode(', ', $san_strings));
                             } else {
-                                echo htmlspecialchars($ssl_info['details']['san']);
+                                echo safeHtmlspecialchars($ssl_info['details']['san']);
                             }
                         ?></span>
                     </div>
@@ -735,10 +771,10 @@ require_once ABSPATH . 'templates/header.php';
                         <?php echo $info['present'] ? '✅' : '❌'; ?>
                     </div>
                     <div class="header-info">
-                        <h4><?php echo htmlspecialchars($info['name']); ?></h4>
-                        <p><?php echo htmlspecialchars($info['description']); ?></p>
+                        <h4><?php echo safeHtmlspecialchars($info['name']); ?></h4>
+                        <p><?php echo safeHtmlspecialchars($info['description']); ?></p>
                         <?php if ($info['present'] && isset($info['value'])): ?>
-                            <code><?php echo htmlspecialchars($info['value']); ?></code>
+                            <code><?php echo safeHtmlspecialchars($info['value']); ?></code>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -750,7 +786,7 @@ require_once ABSPATH . 'templates/header.php';
                 <h3>Raccomandazioni</h3>
                 <ul>
                     <?php foreach ($security_headers['recommendations'] as $rec): ?>
-                    <li><?php echo htmlspecialchars($rec); ?></li>
+                    <li><?php echo safeHtmlspecialchars($rec); ?></li>
                     <?php endforeach; ?>
                 </ul>
             </div>
@@ -769,20 +805,22 @@ require_once ABSPATH . 'templates/header.php';
             <div class="technologies-grid">
                 <?php if (isset($technologies['categories']) && is_array($technologies['categories'])): ?>
                     <?php foreach ($technologies['categories'] as $category => $techs): ?>
-                    <?php if (!empty($techs)): ?>
+                    <?php if (!empty($techs) && is_array($techs)): ?>
                     <div class="tech-category">
-                        <h3><?php echo htmlspecialchars($category); ?></h3>
+                        <h3><?php echo safeHtmlspecialchars($category); ?></h3>
                         <div class="tech-items">
                             <?php foreach ($techs as $tech): ?>
+                            <?php if (is_array($tech)): ?>
                             <div class="tech-item">
                                 <?php if (isset($tech['icon'])): ?>
-                                <img src="<?php echo htmlspecialchars($tech['icon']); ?>" alt="<?php echo htmlspecialchars($tech['name']); ?>" class="tech-icon">
+                                <img src="<?php echo safeHtmlspecialchars($tech['icon']); ?>" alt="<?php echo safeHtmlspecialchars($tech['name']); ?>" class="tech-icon">
                                 <?php endif; ?>
-                                <span class="tech-name"><?php echo htmlspecialchars($tech['name']); ?></span>
+                                <span class="tech-name"><?php echo safeHtmlspecialchars($tech['name']); ?></span>
                                 <?php if (isset($tech['version'])): ?>
-                                <span class="tech-version"><?php echo htmlspecialchars($tech['version']); ?></span>
+                                <span class="tech-version"><?php echo safeHtmlspecialchars($tech['version']); ?></span>
                                 <?php endif; ?>
                             </div>
+                            <?php endif; ?>
                             <?php endforeach; ?>
                         </div>
                     </div>
@@ -806,18 +844,18 @@ require_once ABSPATH . 'templates/header.php';
                 <div class="cloud-card">
                     <div class="cloud-card-header">
                         <span class="cloud-service-icon"><?php echo getServiceIcon($service); ?></span>
-                        <h3><?php echo htmlspecialchars($service); ?></h3>
+                        <h3><?php echo safeHtmlspecialchars($service); ?></h3>
                     </div>
                     <div class="cloud-card-body">
                         <p class="confidence-level">
-                            Confidenza: <strong><?php echo $details['confidence']; ?>%</strong>
+                            Confidenza: <strong><?php echo isset($details['confidence']) ? $details['confidence'] : 0; ?>%</strong>
                         </p>
-                        <?php if (!empty($details['indicators'])): ?>
+                        <?php if (isset($details['indicators']) && !empty($details['indicators'])): ?>
                         <div class="indicators">
                             <p class="indicators-label">Indicatori trovati:</p>
                             <ul class="indicators-list">
                                 <?php foreach ($details['indicators'] as $indicator): ?>
-                                <li><?php echo htmlspecialchars($indicator); ?></li>
+                                <li><?php echo safeHtmlspecialchars($indicator); ?></li>
                                 <?php endforeach; ?>
                             </ul>
                         </div>
@@ -922,7 +960,7 @@ require_once ABSPATH . 'templates/header.php';
             
             <?php if (isset($email_config['email_provider']) && $email_config['email_provider']): ?>
             <div class="email-provider">
-                <p>Provider Email Rilevato: <strong><?php echo htmlspecialchars($email_config['email_provider']); ?></strong></p>
+                <p>Provider Email Rilevato: <strong><?php echo safeHtmlspecialchars($email_config['email_provider']); ?></strong></p>
             </div>
             <?php endif; ?>
             
@@ -931,7 +969,7 @@ require_once ABSPATH . 'templates/header.php';
                 <h3>Raccomandazioni</h3>
                 <ul>
                     <?php foreach ($email_config['recommendations'] as $rec): ?>
-                    <li><?php echo htmlspecialchars($rec); ?></li>
+                    <li><?php echo safeHtmlspecialchars($rec); ?></li>
                     <?php endforeach; ?>
                 </ul>
             </div>
@@ -1008,12 +1046,12 @@ require_once ABSPATH . 'templates/header.php';
                     <?php foreach ($grouped_listings as $ip_data): ?>
                     <div class="issue-card">
                         <div class="issue-header">
-                            <span class="issue-ip"><?php echo htmlspecialchars($ip_data['ip']); ?></span>
-                            <span class="issue-source"><?php echo htmlspecialchars($ip_data['source']); ?></span>
+                            <span class="issue-ip"><?php echo safeHtmlspecialchars($ip_data['ip']); ?></span>
+                            <span class="issue-source"><?php echo safeHtmlspecialchars($ip_data['source']); ?></span>
                         </div>
                         <div class="issue-blacklists">
                             <?php foreach ($ip_data['blacklists'] as $bl): ?>
-                            <span class="blacklist-badge"><?php echo htmlspecialchars($bl); ?></span>
+                            <span class="blacklist-badge"><?php echo safeHtmlspecialchars($bl); ?></span>
                             <?php endforeach; ?>
                         </div>
                     </div>
@@ -1068,7 +1106,7 @@ require_once ABSPATH . 'templates/header.php';
                 <h3>Raccomandazioni di Sicurezza</h3>
                 <ul>
                     <?php foreach ($security_analysis['recommendations'] as $rec): ?>
-                    <li><?php echo htmlspecialchars($rec); ?></li>
+                    <li><?php echo safeHtmlspecialchars($rec); ?></li>
                     <?php endforeach; ?>
                 </ul>
             </div>
@@ -1155,8 +1193,8 @@ require_once ABSPATH . 'templates/header.php';
                     <?php foreach ($social_meta['basic'] as $name => $content): ?>
                     <?php if (is_string($content)): ?>
                     <div class="meta-item">
-                        <span class="meta-name"><?php echo htmlspecialchars($name); ?>:</span>
-                        <span class="meta-content"><?php echo htmlspecialchars($content); ?></span>
+                        <span class="meta-name"><?php echo safeHtmlspecialchars($name); ?>:</span>
+                        <span class="meta-content"><?php echo safeHtmlspecialchars($content); ?></span>
                     </div>
                     <?php endif; ?>
                     <?php endforeach; ?>
@@ -1171,8 +1209,8 @@ require_once ABSPATH . 'templates/header.php';
                     <?php foreach ($social_meta['opengraph'] as $property => $content): ?>
                     <?php if (is_string($content)): ?>
                     <div class="meta-item">
-                        <span class="meta-name"><?php echo htmlspecialchars($property); ?>:</span>
-                        <span class="meta-content"><?php echo htmlspecialchars($content); ?></span>
+                        <span class="meta-name"><?php echo safeHtmlspecialchars($property); ?>:</span>
+                        <span class="meta-content"><?php echo safeHtmlspecialchars($content); ?></span>
                     </div>
                     <?php endif; ?>
                     <?php endforeach; ?>
@@ -1187,8 +1225,8 @@ require_once ABSPATH . 'templates/header.php';
                     <?php foreach ($social_meta['twitter'] as $name => $content): ?>
                     <?php if (is_string($content)): ?>
                     <div class="meta-item">
-                        <span class="meta-name"><?php echo htmlspecialchars($name); ?>:</span>
-                        <span class="meta-content"><?php echo htmlspecialchars($content); ?></span>
+                        <span class="meta-name"><?php echo safeHtmlspecialchars($name); ?>:</span>
+                        <span class="meta-content"><?php echo safeHtmlspecialchars($content); ?></span>
                     </div>
                     <?php endif; ?>
                     <?php endforeach; ?>
@@ -1285,14 +1323,14 @@ require_once ABSPATH . 'templates/header.php';
                     <div class="chain-step">
                         <div class="step-number"><?php echo $index + 1; ?></div>
                         <div class="step-details">
-                            <div class="step-url"><?php echo htmlspecialchars($step['url']); ?></div>
+                            <div class="step-url"><?php echo safeHtmlspecialchars($step['url']); ?></div>
                             <div class="step-info">
                                 <span class="status-code status-<?php echo substr($step['status_code'], 0, 1); ?>xx">
-                                    <?php echo $step['status_code']; ?> <?php echo $step['status_text']; ?>
+                                    <?php echo $step['status_code']; ?> <?php echo safeHtmlspecialchars($step['status_text']); ?>
                                 </span>
                                 <span class="response-time"><?php echo $step['response_time']; ?>ms</span>
                                 <?php if ($step['redirect_type'] != 'Unknown'): ?>
-                                <span class="redirect-type"><?php echo $step['redirect_type']; ?></span>
+                                <span class="redirect-type"><?php echo safeHtmlspecialchars($step['redirect_type']); ?></span>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -1319,9 +1357,9 @@ require_once ABSPATH . 'templates/header.php';
                             ?>
                         </div>
                         <div class="issue-content">
-                            <h4><?php echo htmlspecialchars($issue['message']); ?></h4>
+                            <h4><?php echo safeHtmlspecialchars($issue['message']); ?></h4>
                             <?php if (isset($issue['impact'])): ?>
-                            <p><?php echo htmlspecialchars($issue['impact']); ?></p>
+                            <p><?php echo safeHtmlspecialchars($issue['impact']); ?></p>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -1339,11 +1377,11 @@ require_once ABSPATH . 'templates/header.php';
                         <div class="rec-priority priority-<?php echo $rec['priority']; ?>">
                             <?php echo ucfirst($rec['priority']); ?>
                         </div>
-                        <h4><?php echo htmlspecialchars($rec['title']); ?></h4>
-                        <p><?php echo htmlspecialchars($rec['description']); ?></p>
+                        <h4><?php echo safeHtmlspecialchars($rec['title']); ?></h4>
+                        <p><?php echo safeHtmlspecialchars($rec['description']); ?></p>
                         <?php if (isset($rec['solution'])): ?>
                         <div class="rec-solution">
-                            <strong>Soluzione:</strong> <?php echo htmlspecialchars($rec['solution']); ?>
+                            <strong>Soluzione:</strong> <?php echo safeHtmlspecialchars($rec['solution']); ?>
                         </div>
                         <?php endif; ?>
                     </div>
@@ -1363,7 +1401,7 @@ require_once ABSPATH . 'templates/header.php';
             </div>
             
             <div class="ports-summary">
-                <p>IP scansionato: <strong><?php echo htmlspecialchars($port_scan_results['ip']); ?></strong></p>
+                <p>IP scansionato: <strong><?php echo safeHtmlspecialchars($port_scan_results['ip']); ?></strong></p>
                 <p>Porte aperte: <strong><?php echo $port_scan_results['open_count']; ?></strong> su <?php echo $port_scan_results['total_scanned']; ?> scansionate</p>
             </div>
             
@@ -1372,7 +1410,7 @@ require_once ABSPATH . 'templates/header.php';
                 <?php if ($info['status'] === 'open'): ?>
                 <div class="port-item open">
                     <div class="port-number"><?php echo $port; ?></div>
-                    <div class="port-service"><?php echo htmlspecialchars($info['service']); ?></div>
+                    <div class="port-service"><?php echo safeHtmlspecialchars($info['service']); ?></div>
                     <div class="port-status">Aperta</div>
                 </div>
                 <?php endif; ?>
