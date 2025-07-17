@@ -117,10 +117,133 @@ $breadcrumb_data = getBreadcrumb(isset($page_name) ? $page_name : 'Home');
         *{margin:0;padding:0;box-sizing:border-box}
         body{font-family:'Lato',-apple-system,BlinkMacSystemFont,sans-serif;background:#f0f4f8;color:var(--text-dark)}
         .container{max-width:1400px;margin:0 auto;padding:0 20px}
-        nav{background:rgba(255,255,255,0.9);backdrop-filter:blur(20px);position:fixed;top:0;left:0;right:0;z-index:1000}
-        .hero{padding:140px 20px 80px;text-align:center}
+        nav{background:rgba(255,255,255,0.9);backdrop-filter:blur(20px);position:fixed;top:40px;left:0;right:0;z-index:1000}
+        .hero{padding:180px 20px 80px;text-align:center}
         .loading{display:inline-block;width:20px;height:20px;border:3px solid rgba(255,255,255,0.3);border-radius:50%;border-top-color:#fff;animation:spin .8s linear infinite}
         @keyframes spin{to{transform:rotate(360deg)}}
+        
+        /* Top bar styles */
+        .top-bar {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 8px 0;
+            font-size: 14px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1001;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .top-bar-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .top-bar-contacts {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .top-bar-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: white;
+            text-decoration: none;
+            transition: opacity 0.3s;
+        }
+        
+        .top-bar-item:hover {
+            opacity: 0.8;
+            color: white;
+        }
+        
+        .top-bar-item svg {
+            width: 16px;
+            height: 16px;
+        }
+        
+        .top-bar-cta {
+            background: linear-gradient(135deg, #fff 0%, #f0f0f0 100%);
+            color: #1e3c72;
+            padding: 6px 20px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            border: 2px solid rgba(255,255,255,0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .top-bar-cta::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+            transition: left 0.3s ease;
+            z-index: -1;
+        }
+        
+        .top-bar-cta:hover {
+            color: #1e3c72;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+            border-color: #ffd700;
+        }
+        
+        .top-bar-cta:hover::before {
+            left: 0;
+        }
+        
+        .top-bar-cta svg {
+            width: 16px;
+            height: 16px;
+            transition: transform 0.3s ease;
+        }
+        
+        .top-bar-cta:hover svg {
+            transform: translate(2px, -2px);
+        }
+        
+        @media (max-width: 768px) {
+            .top-bar {
+                font-size: 12px;
+                padding: 10px 0;
+            }
+            
+            .top-bar-content {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .top-bar-contacts {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            nav {
+                top: 80px;
+            }
+            
+            .hero {
+                padding-top: 220px;
+            }
+        }
     </style>
     
     <!-- Schema.org structured data -->
@@ -213,6 +336,41 @@ $breadcrumb_data = getBreadcrumb(isset($page_name) ? $page_name : 'Home');
     <div class="orb orb2"></div>
     <div class="orb orb3"></div>
     
+    <!-- Top Bar con contatti G Tech Group -->
+    <div class="top-bar">
+        <div class="container">
+            <div class="top-bar-content">
+                <div class="top-bar-contacts">
+                    <a href="tel:+390687502002" class="top-bar-item">
+                        <svg fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
+                        </svg>
+                        +39 06 87502002
+                    </a>
+                    <a href="mailto:info@gtechgroup.it" class="top-bar-item">
+                        <svg fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
+                            <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+                        </svg>
+                        info@gtechgroup.it
+                    </a>
+                    <a href="https://wa.me/393921361200" target="_blank" rel="noopener" class="top-bar-item">
+                        <svg fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                        </svg>
+                        WhatsApp
+                    </a>
+                </div>
+                <a href="https://gtechgroup.it" target="_blank" rel="noopener" class="top-bar-cta">
+                    <strong>Scopri G Tech Group</strong>
+                    <svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                    </svg>
+                </a>
+            </div>
+        </div>
+    </div>
+    
     <!-- Navigation -->
     <nav id="navbar" role="navigation" aria-label="Menu principale">
         <div class="container">
@@ -273,7 +431,7 @@ $breadcrumb_data = getBreadcrumb(isset($page_name) ? $page_name : 'Home');
     
     <!-- Breadcrumb (per pagine interne) -->
     <?php if ($current_page !== 'index' && !isset($hide_breadcrumb)): ?>
-    <div class="breadcrumb-wrapper">
+    <div class="breadcrumb-wrapper" style="margin-top: 40px;">
         <div class="container">
             <nav aria-label="Breadcrumb" class="breadcrumb">
                 <ol itemscope itemtype="https://schema.org/BreadcrumbList">
@@ -304,7 +462,7 @@ $breadcrumb_data = getBreadcrumb(isset($page_name) ? $page_name : 'Home');
     <?php endif; ?>
     
     <!-- Main content wrapper -->
-    <main id="main-content" role="main">
+    <main id="main-content" role="main" <?php echo ($current_page !== 'index' || isset($hide_hero)) ? 'style="padding-top: 100px;"' : ''; ?>>
         <div class="container">
             
     <!-- Notice banner (opzionale) -->
