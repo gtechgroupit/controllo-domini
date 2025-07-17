@@ -655,29 +655,58 @@ require_once ABSPATH . 'templates/header.php';
                 <div class="ssl-details">
                     <div class="ssl-detail-item">
                         <span class="detail-label">Emesso per:</span>
-                        <span class="detail-value"><?php echo htmlspecialchars($ssl_info['details']['subject']); ?></span>
+                        <span class="detail-value"><?php 
+                            if (isset($ssl_info['details']['subject'])) {
+                                if (is_array($ssl_info['details']['subject'])) {
+                                    // Se è un array, mostra il CN (Common Name) o tutto l'array formattato
+                                    if (isset($ssl_info['details']['subject']['CN'])) {
+                                        echo htmlspecialchars($ssl_info['details']['subject']['CN']);
+                                    } else {
+                                        // Mostra tutti i componenti del subject
+                                        $subject_parts = array();
+                                        foreach ($ssl_info['details']['subject'] as $key => $value) {
+                                            if (is_string($value)) {
+                                                $subject_parts[] = $key . '=' . $value;
+                                            }
+                                        }
+                                        echo htmlspecialchars(implode(', ', $subject_parts));
+                                    }
+                                } else {
+                                    // Se è una stringa, mostrala normalmente
+                                    echo htmlspecialchars($ssl_info['details']['subject']);
+                                }
+                            } else {
+                                echo 'N/A';
+                            }
+                        ?></span>
                     </div>
                     <div class="ssl-detail-item">
                         <span class="detail-label">Emesso da:</span>
-                        <span class="detail-value"><?php echo htmlspecialchars($ssl_info['details']['issuer']); ?></span>
+                        <span class="detail-value"><?php echo isset($ssl_info['details']['issuer']) ? htmlspecialchars($ssl_info['details']['issuer']) : 'N/A'; ?></span>
                     </div>
                     <div class="ssl-detail-item">
                         <span class="detail-label">Valido dal:</span>
-                        <span class="detail-value"><?php echo htmlspecialchars($ssl_info['details']['valid_from']); ?></span>
+                        <span class="detail-value"><?php echo isset($ssl_info['details']['valid_from']) ? htmlspecialchars($ssl_info['details']['valid_from']) : 'N/A'; ?></span>
                     </div>
                     <div class="ssl-detail-item">
                         <span class="detail-label">Valido fino al:</span>
-                        <span class="detail-value <?php echo $ssl_info['days_until_expiry'] < 30 ? 'text-warning' : ''; ?>">
-                            <?php echo htmlspecialchars($ssl_info['details']['valid_to']); ?>
-                            <?php if ($ssl_info['days_until_expiry'] >= 0): ?>
+                        <span class="detail-value <?php echo (isset($ssl_info['days_until_expiry']) && $ssl_info['days_until_expiry'] < 30) ? 'text-warning' : ''; ?>">
+                            <?php echo isset($ssl_info['details']['valid_to']) ? htmlspecialchars($ssl_info['details']['valid_to']) : 'N/A'; ?>
+                            <?php if (isset($ssl_info['days_until_expiry']) && $ssl_info['days_until_expiry'] >= 0): ?>
                                 <small>(<?php echo $ssl_info['days_until_expiry']; ?> giorni)</small>
                             <?php endif; ?>
                         </span>
                     </div>
-                    <?php if (!empty($ssl_info['details']['san'])): ?>
+                    <?php if (isset($ssl_info['details']['san']) && !empty($ssl_info['details']['san'])): ?>
                     <div class="ssl-detail-item">
                         <span class="detail-label">Domini alternativi:</span>
-                        <span class="detail-value"><?php echo htmlspecialchars(implode(', ', $ssl_info['details']['san'])); ?></span>
+                        <span class="detail-value"><?php 
+                            if (is_array($ssl_info['details']['san'])) {
+                                echo htmlspecialchars(implode(', ', $ssl_info['details']['san']));
+                            } else {
+                                echo htmlspecialchars($ssl_info['details']['san']);
+                            }
+                        ?></span>
                     </div>
                     <?php endif; ?>
                 </div>
@@ -706,7 +735,7 @@ require_once ABSPATH . 'templates/header.php';
                         <?php echo $info['present'] ? '✅' : '❌'; ?>
                     </div>
                     <div class="header-info">
-                        <h4><?php echo htmlspecialchars($header); ?></h4>
+                        <h4><?php echo htmlspecialchars($info['name']); ?></h4>
                         <p><?php echo htmlspecialchars($info['description']); ?></p>
                         <?php if ($info['present'] && isset($info['value'])): ?>
                             <code><?php echo htmlspecialchars($info['value']); ?></code>
@@ -738,26 +767,28 @@ require_once ABSPATH . 'templates/header.php';
             </div>
             
             <div class="technologies-grid">
-                <?php foreach ($technologies['categories'] as $category => $techs): ?>
-                <?php if (!empty($techs)): ?>
-                <div class="tech-category">
-                    <h3><?php echo htmlspecialchars($category); ?></h3>
-                    <div class="tech-items">
-                        <?php foreach ($techs as $tech): ?>
-                        <div class="tech-item">
-                            <?php if (isset($tech['icon'])): ?>
-                            <img src="<?php echo htmlspecialchars($tech['icon']); ?>" alt="<?php echo htmlspecialchars($tech['name']); ?>" class="tech-icon">
-                            <?php endif; ?>
-                            <span class="tech-name"><?php echo htmlspecialchars($tech['name']); ?></span>
-                            <?php if (isset($tech['version'])): ?>
-                            <span class="tech-version"><?php echo htmlspecialchars($tech['version']); ?></span>
-                            <?php endif; ?>
+                <?php if (isset($technologies['categories']) && is_array($technologies['categories'])): ?>
+                    <?php foreach ($technologies['categories'] as $category => $techs): ?>
+                    <?php if (!empty($techs)): ?>
+                    <div class="tech-category">
+                        <h3><?php echo htmlspecialchars($category); ?></h3>
+                        <div class="tech-items">
+                            <?php foreach ($techs as $tech): ?>
+                            <div class="tech-item">
+                                <?php if (isset($tech['icon'])): ?>
+                                <img src="<?php echo htmlspecialchars($tech['icon']); ?>" alt="<?php echo htmlspecialchars($tech['name']); ?>" class="tech-icon">
+                                <?php endif; ?>
+                                <span class="tech-name"><?php echo htmlspecialchars($tech['name']); ?></span>
+                                <?php if (isset($tech['version'])): ?>
+                                <span class="tech-version"><?php echo htmlspecialchars($tech['version']); ?></span>
+                                <?php endif; ?>
+                            </div>
+                            <?php endforeach; ?>
                         </div>
-                        <?php endforeach; ?>
                     </div>
-                </div>
+                    <?php endif; ?>
+                    <?php endforeach; ?>
                 <?php endif; ?>
-                <?php endforeach; ?>
             </div>
         </section>
         <?php endif; ?>
@@ -1089,7 +1120,7 @@ require_once ABSPATH . 'templates/header.php';
                 <div class="optimization-grid">
                     <div class="opt-item <?php echo $performance_data['optimization']['compression'] ? 'enabled' : 'disabled'; ?>">
                         <span><?php echo $performance_data['optimization']['compression'] ? '✅' : '❌'; ?></span>
-                        Compressione <?php echo $performance_data['optimization']['compression_type'] ?? 'Non attiva'; ?>
+                        Compressione <?php echo isset($performance_data['optimization']['compression_type']) ? $performance_data['optimization']['compression_type'] : 'Non attiva'; ?>
                     </div>
                     <div class="opt-item <?php echo $performance_data['optimization']['caching'] ? 'enabled' : 'disabled'; ?>">
                         <span><?php echo $performance_data['optimization']['caching'] ? '✅' : '❌'; ?></span>
@@ -1117,43 +1148,49 @@ require_once ABSPATH . 'templates/header.php';
                 <h2 class="social-title">Meta Tag Social & SEO</h2>
             </div>
             
-            <?php if (isset($social_meta['basic'])): ?>
+            <?php if (isset($social_meta['basic']) && is_array($social_meta['basic'])): ?>
             <div class="meta-group">
                 <h3>Meta Tag Base</h3>
                 <div class="meta-items">
                     <?php foreach ($social_meta['basic'] as $name => $content): ?>
+                    <?php if (is_string($content)): ?>
                     <div class="meta-item">
                         <span class="meta-name"><?php echo htmlspecialchars($name); ?>:</span>
                         <span class="meta-content"><?php echo htmlspecialchars($content); ?></span>
                     </div>
+                    <?php endif; ?>
                     <?php endforeach; ?>
                 </div>
             </div>
             <?php endif; ?>
             
-            <?php if (isset($social_meta['opengraph']) && !empty($social_meta['opengraph'])): ?>
+            <?php if (isset($social_meta['opengraph']) && !empty($social_meta['opengraph']) && is_array($social_meta['opengraph'])): ?>
             <div class="meta-group">
                 <h3>Open Graph</h3>
                 <div class="meta-items">
                     <?php foreach ($social_meta['opengraph'] as $property => $content): ?>
+                    <?php if (is_string($content)): ?>
                     <div class="meta-item">
                         <span class="meta-name"><?php echo htmlspecialchars($property); ?>:</span>
                         <span class="meta-content"><?php echo htmlspecialchars($content); ?></span>
                     </div>
+                    <?php endif; ?>
                     <?php endforeach; ?>
                 </div>
             </div>
             <?php endif; ?>
             
-            <?php if (isset($social_meta['twitter']) && !empty($social_meta['twitter'])): ?>
+            <?php if (isset($social_meta['twitter']) && !empty($social_meta['twitter']) && is_array($social_meta['twitter'])): ?>
             <div class="meta-group">
                 <h3>Twitter Card</h3>
                 <div class="meta-items">
                     <?php foreach ($social_meta['twitter'] as $name => $content): ?>
+                    <?php if (is_string($content)): ?>
                     <div class="meta-item">
                         <span class="meta-name"><?php echo htmlspecialchars($name); ?>:</span>
                         <span class="meta-content"><?php echo htmlspecialchars($content); ?></span>
                     </div>
+                    <?php endif; ?>
                     <?php endforeach; ?>
                 </div>
             </div>
@@ -1210,6 +1247,110 @@ require_once ABSPATH . 'templates/header.php';
                 </div>
                 <?php endif; ?>
             </div>
+        </section>
+        <?php endif; ?>
+        
+        <!-- Redirect Chain Analysis -->
+        <?php if ($redirect_analysis && isset($redirect_analysis['chain'])): ?>
+        <section class="redirect-section" data-aos="fade-up">
+            <div class="redirect-header">
+                <span class="redirect-icon">🔄</span>
+                <h2 class="redirect-title">Analisi Catena di Redirect</h2>
+            </div>
+            
+            <div class="redirect-overview">
+                <div class="redirect-stats">
+                    <div class="redirect-stat">
+                        <span class="stat-value"><?php echo $redirect_analysis['redirect_count']; ?></span>
+                        <span class="stat-label">Redirect totali</span>
+                    </div>
+                    <div class="redirect-stat">
+                        <span class="stat-value"><?php echo round($redirect_analysis['total_time'] / 1000, 2); ?>s</span>
+                        <span class="stat-label">Tempo totale</span>
+                    </div>
+                    <div class="redirect-stat">
+                        <span class="stat-value <?php echo $redirect_analysis['redirect_score'] >= 70 ? 'text-success' : 'text-warning'; ?>">
+                            <?php echo $redirect_analysis['redirect_score']; ?>/100
+                        </span>
+                        <span class="stat-label">Score redirect</span>
+                    </div>
+                </div>
+            </div>
+            
+            <?php if (!empty($redirect_analysis['chain'])): ?>
+            <div class="redirect-chain">
+                <h3>Catena di Redirect</h3>
+                <div class="chain-steps">
+                    <?php foreach ($redirect_analysis['chain'] as $index => $step): ?>
+                    <div class="chain-step">
+                        <div class="step-number"><?php echo $index + 1; ?></div>
+                        <div class="step-details">
+                            <div class="step-url"><?php echo htmlspecialchars($step['url']); ?></div>
+                            <div class="step-info">
+                                <span class="status-code status-<?php echo substr($step['status_code'], 0, 1); ?>xx">
+                                    <?php echo $step['status_code']; ?> <?php echo $step['status_text']; ?>
+                                </span>
+                                <span class="response-time"><?php echo $step['response_time']; ?>ms</span>
+                                <?php if ($step['redirect_type'] != 'Unknown'): ?>
+                                <span class="redirect-type"><?php echo $step['redirect_type']; ?></span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <?php endif; ?>
+            
+            <?php if (!empty($redirect_analysis['issues'])): ?>
+            <div class="redirect-issues">
+                <h3>Problemi Rilevati</h3>
+                <div class="issues-list">
+                    <?php foreach ($redirect_analysis['issues'] as $issue): ?>
+                    <div class="issue-item issue-<?php echo $issue['severity']; ?>">
+                        <div class="issue-icon">
+                            <?php 
+                            switch($issue['severity']) {
+                                case 'critical': echo '🚨'; break;
+                                case 'high': echo '⚠️'; break;
+                                case 'medium': echo '⚡'; break;
+                                default: echo 'ℹ️';
+                            }
+                            ?>
+                        </div>
+                        <div class="issue-content">
+                            <h4><?php echo htmlspecialchars($issue['message']); ?></h4>
+                            <?php if (isset($issue['impact'])): ?>
+                            <p><?php echo htmlspecialchars($issue['impact']); ?></p>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <?php endif; ?>
+            
+            <?php if (!empty($redirect_analysis['recommendations'])): ?>
+            <div class="redirect-recommendations">
+                <h3>Raccomandazioni</h3>
+                <div class="recommendations-grid">
+                    <?php foreach ($redirect_analysis['recommendations'] as $rec): ?>
+                    <div class="recommendation-card">
+                        <div class="rec-priority priority-<?php echo $rec['priority']; ?>">
+                            <?php echo ucfirst($rec['priority']); ?>
+                        </div>
+                        <h4><?php echo htmlspecialchars($rec['title']); ?></h4>
+                        <p><?php echo htmlspecialchars($rec['description']); ?></p>
+                        <?php if (isset($rec['solution'])): ?>
+                        <div class="rec-solution">
+                            <strong>Soluzione:</strong> <?php echo htmlspecialchars($rec['solution']); ?>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <?php endif; ?>
         </section>
         <?php endif; ?>
         
@@ -1615,7 +1756,9 @@ document.addEventListener('DOMContentLoaded', function() {
 .performance-section,
 .social-meta-section,
 .robots-sitemap-section,
-.ports-section {
+.ports-section,
+.redirect-section,
+.security-section {
     margin-top: 60px;
     background: white;
     padding: 40px;
@@ -1891,6 +2034,186 @@ document.addEventListener('DOMContentLoaded', function() {
 .robots-details p,
 .sitemap-details p {
     margin: 10px 0;
+    color: var(--gray-700);
+}
+
+/* Redirect styles */
+.redirect-section {
+    background: white;
+}
+
+.redirect-overview {
+    margin: 30px 0;
+}
+
+.redirect-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 20px;
+}
+
+.redirect-stat {
+    text-align: center;
+    padding: 20px;
+    background: var(--gray-50);
+    border-radius: 12px;
+}
+
+.redirect-stat .stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary);
+    display: block;
+    margin-bottom: 5px;
+}
+
+.redirect-stat .stat-label {
+    color: var(--gray-600);
+    font-size: 0.9rem;
+}
+
+.redirect-chain {
+    margin-top: 40px;
+}
+
+.chain-steps {
+    margin-top: 20px;
+}
+
+.chain-step {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 20px;
+    padding: 20px;
+    background: var(--gray-50);
+    border-radius: 12px;
+}
+
+.chain-step .step-number {
+    width: 40px;
+    height: 40px;
+    background: var(--primary);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    margin-right: 20px;
+    flex-shrink: 0;
+}
+
+.step-details {
+    flex: 1;
+}
+
+.step-url {
+    font-weight: 600;
+    color: var(--gray-800);
+    margin-bottom: 10px;
+    word-break: break-all;
+}
+
+.step-info {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.status-code {
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.status-2xx { background: var(--success-light); color: var(--success-dark); }
+.status-3xx { background: var(--info-light); color: var(--info-dark); }
+.status-4xx { background: var(--warning-light); color: var(--warning-dark); }
+.status-5xx { background: var(--error-light); color: var(--error-dark); }
+
+.response-time,
+.redirect-type {
+    font-size: 0.85rem;
+    color: var(--gray-600);
+}
+
+.redirect-issues,
+.redirect-recommendations {
+    margin-top: 40px;
+}
+
+.issues-list {
+    margin-top: 20px;
+}
+
+.issue-item {
+    display: flex;
+    align-items: flex-start;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 15px;
+}
+
+.issue-critical { background: var(--error-light); }
+.issue-high { background: var(--warning-light); }
+.issue-medium { background: var(--info-light); }
+.issue-low { background: var(--gray-100); }
+
+.issue-icon {
+    font-size: 24px;
+    margin-right: 15px;
+}
+
+.issue-content h4 {
+    margin: 0 0 5px 0;
+    color: var(--gray-800);
+}
+
+.issue-content p {
+    margin: 0;
+    color: var(--gray-600);
+}
+
+.recommendations-grid {
+    display: grid;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.recommendation-card {
+    padding: 20px;
+    background: var(--gray-50);
+    border-radius: 12px;
+}
+
+.rec-priority {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.priority-high { background: var(--error-light); color: var(--error-dark); }
+.priority-medium { background: var(--warning-light); color: var(--warning-dark); }
+.priority-low { background: var(--info-light); color: var(--info-dark); }
+
+.recommendation-card h4 {
+    margin: 10px 0;
+    color: var(--gray-800);
+}
+
+.recommendation-card p {
+    color: var(--gray-600);
+    margin-bottom: 10px;
+}
+
+.rec-solution {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--gray-200);
     color: var(--gray-700);
 }
 
