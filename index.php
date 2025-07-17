@@ -112,7 +112,7 @@ if (($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) ||
                     $ssl_info = analyzeSSLCertificate($domain);
                     
                     // 9. Controlla security headers
-                    $security_headers = checkSecurityHeaders($domain);
+                    $security_headers = analyzeSecurityHeaders($domain);
                     
                     // 10. Rileva tecnologie
                     $technologies = detectTechnologies($domain);
