@@ -90,7 +90,7 @@ function getSSLCertificateInfo($domain) {
         "ssl://" . $domain . ":443", 
         $errno, 
         $errstr, 
-        10, 
+        3, // Timeout ridotto da 10 a 3 secondi
         STREAM_CLIENT_CONNECT, 
         $context
     );
@@ -255,7 +255,7 @@ function getSSLChain($domain) {
         "ssl://" . $domain . ":443", 
         $errno, 
         $errstr, 
-        10, 
+        3, // Timeout ridotto da 10 a 3 secondi
         STREAM_CLIENT_CONNECT, 
         $context
     );
@@ -322,7 +322,7 @@ function checkSSLProtocols($domain) {
             "tcp://" . $domain . ":443", 
             $errno, 
             $errstr, 
-            5, 
+            2, // Timeout ridotto da 5 a 2 secondi
             STREAM_CLIENT_CONNECT, 
             $context
         );
@@ -382,7 +382,7 @@ function checkCipherSuites($domain) {
             "ssl://" . $domain . ":443", 
             $errno, 
             $errstr, 
-            5, 
+            2, // Timeout ridotto da 5 a 2 secondi
             STREAM_CLIENT_CONNECT, 
             $context
         );
@@ -718,3 +718,14 @@ function detectCertificateType($cert_info) {
     
     return 'Domain Validation (DV)';
 }
+
+/**
+ * Alias per compatibilità con index.php
+ * 
+ * @param string $domain Dominio da analizzare
+ * @return array Informazioni sul certificato
+ */
+function checkSSLCertificate($domain) {
+    return analyzeSSLCertificate($domain);
+}
+?>
