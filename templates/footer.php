@@ -71,10 +71,10 @@ $assets_version = defined('APP_VERSION') ? APP_VERSION : '4.0';
                     <div class="footer-section">
                         <h4 class="footer-subtitle">Strumenti</h4>
                         <ul class="footer-links">
-                            <li><a href="/">Controllo DNS</a></li>
-                            <li><a href="/#whois">Verifica WHOIS</a></li>
-                            <li><a href="/#blacklist">Controllo Blacklist</a></li>
-                            <li><a href="/#cloud">Rilevamento Cloud</a></li>
+                            <li><a href="/dns-check">Controllo DNS</a></li>
+                            <li><a href="/whois-lookup">Verifica WHOIS</a></li>
+                            <li><a href="/blacklist-check">Controllo Blacklist</a></li>
+                            <li><a href="/cloud-detection">Rilevamento Cloud</a></li>
                             <li><a href="/api-docs">Documentazione API</a></li>
                             <li><a href="/tools">Altri Strumenti</a></li>
                         </ul>
