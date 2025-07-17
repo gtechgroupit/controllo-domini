@@ -118,7 +118,7 @@ if (($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) ||
                     $technologies = detectTechnologyStack($domain);
                     
                     // 11. Analizza meta tag social
-                    $social_meta = analyzeSocialMeta($domain);
+                    $social_meta = analyzeSocialMetaTags('https://' . $domain);
                     
                     // 12. Analisi performance
                     $performance_data = analyzePerformance($domain);
