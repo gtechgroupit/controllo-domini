@@ -1105,18 +1105,3 @@ function resolveUrl($url, $base) {
     $path = isset($parsed_base['path']) ? dirname($parsed_base['path']) : '';
     return $parsed_base['scheme'] . '://' . $parsed_base['host'] . $path . '/' . $url;
 }
-
-/**
- * Formatta bytes in formato leggibile
- * 
- * @param int $bytes Bytes
- * @return string Formato leggibile
- */
-function formatBytes($bytes) {
-    $units = array('B', 'KB', 'MB', 'GB');
-    $bytes = max($bytes, 0);
-    $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
-    $pow = min($pow, count($units) - 1);
-    
-    return round($bytes / pow(1024, $pow), 2) . ' ' . $units[$pow];
-}
