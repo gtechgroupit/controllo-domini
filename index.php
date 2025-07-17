@@ -115,7 +115,7 @@ if (($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) ||
                     $security_headers = analyzeSecurityHeaders($domain);
                     
                     // 10. Rileva tecnologie
-                    $technologies = detectTechnologies($domain);
+                    $technologies = detectTechnologyStack($domain);
                     
                     // 11. Analizza meta tag social
                     $social_meta = analyzeSocialMeta($domain);
