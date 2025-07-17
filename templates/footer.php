@@ -89,7 +89,7 @@ $assets_version = defined('APP_VERSION') ? APP_VERSION : '4.0';
                             <li><a href="/guide/microsoft-365">Setup Microsoft 365</a></li>
                             <li><a href="/guide/google-workspace">Setup Google Workspace</a></li>
                             <li><a href="/blog">Blog</a></li>
-                            <li><a href="/changelog">Changelog.php</a></li>
+                            <li><a href="/changelog">Changelog</a></li>
                         </ul>
                     </div>
                     
