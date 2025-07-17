@@ -1,81 +1,79 @@
 <?php
 /**
- * Homepage - Controllo Domini
+ * Controllo Domini - Pagina Principale
+ * Sistema professionale per l'analisi DNS e WHOIS
  * 
  * @package ControlDomini
  * @author G Tech Group
+ * @version 4.0
  * @website https://controllodomini.it
  */
 
-// Carica configurazione
-require_once __DIR__ . '/config/config.php';
+// Definisce la costante ABSPATH se non definita
+if (!defined('ABSPATH')) {
+    define('ABSPATH', dirname(__FILE__) . '/');
+}
 
-// Include funzioni necessarie
-require_once ABSPATH . 'includes/functions.php';
+// Carica configurazione
+require_once ABSPATH . 'config/config.php';
+
+// Carica funzioni
+require_once ABSPATH . 'includes/utilities.php';
 require_once ABSPATH . 'includes/dns-functions.php';
 require_once ABSPATH . 'includes/whois-functions.php';
-require_once ABSPATH . 'includes/blacklist-functions.php';
 require_once ABSPATH . 'includes/cloud-detection.php';
-require_once ABSPATH . 'includes/security-analysis.php';
+require_once ABSPATH . 'includes/blacklist-functions.php';
 
-// Inizializza variabili
+// Variabili per la gestione del form
 $domain = '';
-$analysis_completed = false;
+$dns_results = null;
+$whois_info = null;
+$cloud_services = null;
+$blacklist_results = null;
+$domain_health = null;
 $error_message = '';
 $success_message = '';
-$analysis_time = 0;
+$response_time = 0;
+$analysis_completed = false;
 
-// Array per risultati
-$dns_results = array();
-$whois_info = array();
-$blacklist_results = array();
-$cloud_services = array();
-$domain_health = array();
-$suggestions = array();
-$email_config = array();
-$security_analysis = array();
-$performance_analysis = array();
-
-// Gestione form submission
-if ($_SERVER['REQUEST_METHOD'] === 'POST' || isset($_GET['domain'])) {
-    // Ottieni dominio dal POST o GET
-    $domain = isset($_POST['domain']) ? $_POST['domain'] : (isset($_GET['domain']) ? $_GET['domain'] : '');
+// Gestione del form POST
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
+    $domain = trim($_POST['domain']);
     
-    // Pulizia e validazione dominio
-    $domain = trim(strtolower($domain));
-    $domain = str_replace(['http://', 'https://', 'www.'], '', $domain);
-    $domain = explode('/', $domain)[0]; // Rimuovi path
+    // Validazione dominio
+    $validated_domain = validateDomain($domain);
     
-    if (!empty($domain)) {
-        // Validazione formato dominio
-        if (!isValidDomain($domain)) {
-            $error_message = 'Formato dominio non valido. Inserisci un dominio nel formato: esempio.com';
+    if (!$validated_domain) {
+        $error_message = 'Inserisci un nome di dominio valido (es: esempio.com)';
+    } else {
+        $domain = $validated_domain;
+        
+        // Rate limiting
+        $user_ip = getVisitorIP();
+        if (!checkRateLimit($user_ip)) {
+            $error_message = 'Hai raggiunto il limite di richieste. Riprova tra qualche minuto.';
         } else {
-            // Avvia analisi
-            $analysis_start = microtime(true);
-            
             try {
-                // Controlla rate limiting
-                if (isRateLimited($_SERVER['REMOTE_ADDR'])) {
-                    throw new Exception('Troppe richieste. Riprova tra qualche minuto.');
-                }
+                // Inizia l'analisi
+                $analysis_start = microtime(true);
                 
-                // 1. Ottieni tutti i record DNS
-                $dns_results = getAllDnsRecords($domain);
+                // 1. Misura tempo di risposta DNS
+                $response_time = measureDnsResponseTime($domain);
+                
+                // 2. Recupera tutti i record DNS
+                $dns_data = getAllDnsRecords($domain);
+                $dns_results = $dns_data['records'];
                 
                 if (empty($dns_results)) {
-                    throw new Exception('Impossibile risolvere il dominio. Verifica che sia corretto.');
+                    $error_message = 'Nessun record DNS trovato per questo dominio. Verifica che il dominio sia attivo.';
                 } else {
-                    // 2. Identifica servizi cloud
+                    // 3. Analizza servizi cloud
                     $cloud_services = identifyCloudServices($dns_results, $domain);
                     
-                    // Assicurati che detected_services esista e sia un array
-                    if (!isset($cloud_services['detected_services']) || !is_array($cloud_services['detected_services'])) {
-                        $cloud_services['detected_services'] = array();
+                    // Assicurati che detected sia un array
+                    if (!isset($cloud_services['detected']) || !is_array($cloud_services['detected'])) {
+                        $cloud_services['detected'] = array();
                     }
-                    
-                    // 3. Analizza sottodomini comuni
-                    $subdomain_analysis = analyzeCommonSubdomains($domain);
                     
                     // 4. Ottieni informazioni WHOIS
                     $whois_info = getWhoisInfo($domain, isset($_GET['debug']));
@@ -89,39 +87,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' || isset($_GET['domain'])) {
                     // 7. Analizza sicurezza DNS
                     $security_analysis = analyzeSecurityRecords($dns_results);
                     
-                    // 8. Analizza performance DNS
-                    $performance_analysis = analyzeDnsPerformance($dns_results);
-                    
-                    // 9. Calcola salute del dominio
-                    $domain_health = array(
-                        'dns_health' => analyzeDomainHealth($dns_results, $cloud_services, $blacklist_results),
-                        'email_config' => $email_config,
+                    // 8. Calcola health score complessivo
+                    $domain_health = calculateDomainHealth(array(
+                        'dns' => $dns_results,
+                        'whois' => $whois_info,
+                        'blacklist' => $blacklist_results,
+                        'email' => $email_config,
                         'security' => $security_analysis,
-                        'performance' => $performance_analysis
-                    );
+                        'response_time' => $response_time
+                    ));
                     
-                    // 10. Genera suggerimenti
-                    $suggestions = getDnsSuggestions($dns_results, $domain);
-                    
-                    // Log analisi per statistiche - CORREZIONE QUI
-                    $cloud_services_list = array();
-                    if (isset($cloud_services['detected_services']) && is_array($cloud_services['detected_services'])) {
-                        $cloud_services_list = array_keys($cloud_services['detected_services']);
-                    }
-                    
+                    // 9. Log analisi per statistiche
                     logAnalysis($domain, array(
                         'dns_count' => count($dns_results),
-                        'has_mx' => isset($dns_results['MX']) && !empty($dns_results['MX']),
+                        'has_mx' => !empty($dns_results['MX']),
                         'has_spf' => isset($email_config['has_spf']) ? $email_config['has_spf'] : false,
-                        'cloud_services' => $cloud_services_list,
-                        'blacklisted' => isset($blacklist_results['listed']) ? $blacklist_results['listed'] > 0 : false
+                        'cloud_services' => array_keys($cloud_services['detected']),
+                        'blacklisted' => isset($blacklist_results['statistics']['total_listings']) ? $blacklist_results['statistics']['total_listings'] > 0 : false
                     ));
                     
                     $analysis_completed = true;
-                    $analysis_time = round((microtime(true) - $analysis_start) * 1000, 2);
-                    
-                    // Messaggio di successo
-                    $success_message = "Analisi completata in {$analysis_time}ms";
+                    $success_message = 'Analisi completata con successo!';
                 }
                 
             } catch (Exception $e) {
@@ -166,619 +152,710 @@ require_once ABSPATH . 'templates/header.php';
                                value="<?php echo htmlspecialchars($domain); ?>" 
                                required
                                autocomplete="off"
-                               pattern="[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?\.?[a-zA-Z]{2,}"
-                               title="Inserisci un dominio valido (es: esempio.com)">
-                    </div>
-                    <div class="form-help">
-                        <small>Inserisci il dominio senza http:// o www</small>
+                               autofocus>
+                        <button type="submit" class="btn btn-primary submit-btn" id="analyzeBtn">
+                            <span class="btn-text">Analizza</span>
+                            <span class="btn-icon">→</span>
+                        </button>
                     </div>
                 </div>
                 
-                <button type="submit" class="btn btn-primary btn-lg btn-block submit-btn" id="submitBtn">
-                    <span>Avvia Analisi Completa</span>
-                </button>
+                <?php if ($error_message): ?>
+                <div class="alert alert-error" data-aos="fade-in">
+                    <span class="alert-icon">⚠️</span>
+                    <?php echo htmlspecialchars($error_message); ?>
+                </div>
+                <?php endif; ?>
+                
+                <?php if ($success_message && $analysis_completed): ?>
+                <div class="alert alert-success" data-aos="fade-in">
+                    <span class="alert-icon">✅</span>
+                    <?php echo htmlspecialchars($success_message); ?>
+                </div>
+                <?php endif; ?>
             </form>
             
-            <?php if ($error_message): ?>
-                <div class="alert alert-error" role="alert" data-aos="fade-in">
-                    <span class="alert-icon">⚠️</span>
-                    <span class="alert-content"><?php echo htmlspecialchars($error_message); ?></span>
-                </div>
-            <?php endif; ?>
-            
-            <?php if ($success_message && $analysis_completed): ?>
-                <div class="alert alert-success" role="alert" data-aos="fade-in">
-                    <span class="alert-icon">✅</span>
-                    <span class="alert-content"><?php echo htmlspecialchars($success_message); ?></span>
-                </div>
-            <?php endif; ?>
-        </div>
-        
-        <!-- Quick Stats -->
-        <div class="hero-stats" data-aos="fade-up" data-aos-delay="200">
-            <div class="hero-stat">
-                <span class="hero-stat-value" data-value="50000">0</span>
-                <span class="hero-stat-label">Domini Analizzati</span>
-            </div>
-            <div class="hero-stat">
-                <span class="hero-stat-value">99.9%</span>
-                <span class="hero-stat-label">Uptime</span>
-            </div>
-            <div class="hero-stat">
-                <span class="hero-stat-value">&lt; 2s</span>
-                <span class="hero-stat-label">Tempo Medio</span>
+            <!-- Quick Examples -->
+            <div class="quick-examples">
+                <span>Esempi:</span>
+                <button type="button" class="example-link" data-domain="google.com">google.com</button>
+                <button type="button" class="example-link" data-domain="microsoft.com">microsoft.com</button>
+                <button type="button" class="example-link" data-domain="amazon.com">amazon.com</button>
             </div>
         </div>
     </div>
 </section>
 
-<?php if ($analysis_completed && !empty($dns_results)): ?>
-    <!-- Domain Overview Section -->
-    <section id="domain-overview" class="section">
-        <div class="container">
-            <div class="overview-header" data-aos="fade-up">
-                <h2 class="section-title">Analisi completa per <span class="highlight-domain"><?php echo htmlspecialchars($domain); ?></span></h2>
-                <p class="section-subtitle">Risultati dell'analisi DNS, WHOIS e servizi cloud</p>
+<?php if ($analysis_completed && $dns_results): ?>
+<!-- Results Section -->
+<section id="results" class="results-section">
+    <div class="container">
+        <!-- Health Score Overview -->
+        <div class="health-overview" data-aos="fade-up">
+            <div class="health-header">
+                <h2>Salute del Dominio: <?php echo htmlspecialchars($domain); ?></h2>
+                <div class="health-score-circle" data-score="<?php echo $domain_health['score']; ?>">
+                    <svg viewBox="0 0 200 200">
+                        <circle cx="100" cy="100" r="90" fill="none" stroke="#e0e0e0" stroke-width="20"/>
+                        <circle cx="100" cy="100" r="90" fill="none" stroke="url(#scoreGradient)" stroke-width="20" 
+                                stroke-dasharray="<?php echo 565.48 * ($domain_health['score'] / 100); ?> 565.48"
+                                stroke-linecap="round"
+                                transform="rotate(-90 100 100)"/>
+                        <defs>
+                            <linearGradient id="scoreGradient">
+                                <stop offset="0%" style="stop-color:#ff4757"/>
+                                <stop offset="50%" style="stop-color:#ffa502"/>
+                                <stop offset="100%" style="stop-color:#26de81"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <div class="score-text">
+                        <span class="score-value"><?php echo $domain_health['score']; ?></span>
+                        <span class="score-label">/ 100</span>
+                    </div>
+                </div>
+                <p class="health-status <?php echo $domain_health['status_class']; ?>">
+                    <?php echo $domain_health['status_text']; ?>
+                </p>
             </div>
-            
-            <!-- Domain Health Score -->
-            <?php if (!empty($domain_health['dns_health'])): ?>
-            <div class="health-score-container" data-aos="fade-up">
-                <div class="health-score-card">
-                    <h3>Salute del Dominio</h3>
-                    <div class="health-score-visual">
-                        <div class="health-score-circle" data-score="<?php echo $domain_health['dns_health']['score']; ?>">
-                            <svg viewBox="0 0 200 200">
-                                <circle cx="100" cy="100" r="90" fill="none" stroke="#e0e0e0" stroke-width="12"/>
-                                <circle cx="100" cy="100" r="90" fill="none" stroke="url(#scoreGradient)" 
-                                        stroke-width="12" stroke-linecap="round"
-                                        stroke-dasharray="<?php echo 565.5 * ($domain_health['dns_health']['score'] / 100); ?> 565.5"
-                                        transform="rotate(-90 100 100)"/>
-                                <defs>
-                                    <linearGradient id="scoreGradient">
-                                        <stop offset="0%" stop-color="#ff6b6b"/>
-                                        <stop offset="50%" stop-color="#ffd93d"/>
-                                        <stop offset="100%" stop-color="#6bcf7f"/>
-                                    </linearGradient>
-                                </defs>
-                            </svg>
-                            <div class="health-score-text">
-                                <span class="score-value"><?php echo $domain_health['dns_health']['score']; ?></span>
-                                <span class="score-label">/ 100</span>
-                            </div>
-                        </div>
-                    </div>
-                    <p class="health-score-status <?php echo $domain_health['dns_health']['status_class']; ?>">
-                        <?php echo $domain_health['dns_health']['status_text']; ?>
-                    </p>
+        </div>
+        
+        <!-- Key Stats -->
+        <div class="stats-grid" data-aos="fade-up" data-aos-delay="100">
+            <div class="stat-card">
+                <div class="stat-icon">⚡</div>
+                <div class="stat-value" data-value="<?php echo $response_time; ?>"><?php echo $response_time; ?><span style="font-size: 0.5em;">ms</span></div>
+                <div class="stat-label">Tempo di risposta</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📊</div>
+                <div class="stat-value" data-value="<?php echo isset($dns_data['stats']['total_records']) ? $dns_data['stats']['total_records'] : 0; ?>">
+                    <?php echo isset($dns_data['stats']['total_records']) ? $dns_data['stats']['total_records'] : 0; ?>
                 </div>
-                
-                <!-- Quick Stats Grid -->
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <span class="stat-icon">📊</span>
-                        <span class="stat-value"><?php echo count($dns_results); ?></span>
-                        <span class="stat-label">Record DNS</span>
-                    </div>
-                    <div class="stat-card">
-                        <span class="stat-icon">☁️</span>
-                        <span class="stat-value"><?php echo count($cloud_services['detected_services'] ?? []); ?></span>
-                        <span class="stat-label">Servizi Cloud</span>
-                    </div>
-                    <div class="stat-card">
-                        <span class="stat-icon">🔒</span>
-                        <span class="stat-value"><?php echo $email_config['has_spf'] && $email_config['has_dkim'] && $email_config['has_dmarc'] ? 'Ottima' : 'Da Migliorare'; ?></span>
-                        <span class="stat-label">Sicurezza Email</span>
-                    </div>
-                    <div class="stat-card">
-                        <span class="stat-icon">🚫</span>
-                        <span class="stat-value"><?php echo $blacklist_results['listed']; ?>/<?php echo $blacklist_results['checked']; ?></span>
-                        <span class="stat-label">Blacklist</span>
-                    </div>
-                </div>
+                <div class="stat-label">Record DNS</div>
+            </div>
+            <?php if ($whois_info && isset($whois_info['expires']) && $whois_info['expires'] != 'Non disponibile'): ?>
+            <div class="stat-card">
+                <div class="stat-icon">📅</div>
+                <div class="stat-value <?php echo getExpirationClass(daysUntil($whois_info['expires'])); ?>">
+                <?php 
+                    $days = daysUntil($whois_info['expires']);
+                    if ($days !== false) {
+                        echo $days;
+                    } else {
+                        echo 'N/A';
+                    }
+                ?></div>
+                <div class="stat-label">Giorni alla scadenza</div>
+            </div>
+            <?php endif; ?>
+            <?php if ($blacklist_results && isset($blacklist_results['reputation'])): ?>
+            <div class="stat-card">
+                <div class="stat-icon">🛡️</div>
+                <div class="stat-value" data-value="<?php echo $blacklist_results['reputation']['score']; ?>"><?php echo $blacklist_results['reputation']['score']; ?><span style="font-size: 0.5em; font-weight: 400;">%</span></div>
+                <div class="stat-label">Reputazione</div>
             </div>
             <?php endif; ?>
         </div>
-    </section>
-    
-    <!-- DNS Records Section -->
-    <section id="dns-records" class="section section-alt">
-        <div class="container">
-            <div class="section-header" data-aos="fade-up">
-                <h2 class="section-title">Record DNS</h2>
-                <p class="section-subtitle">Configurazione DNS completa del dominio</p>
+        
+        <!-- WHOIS Information -->
+        <?php if ($whois_info): ?>
+        <section class="whois-section" data-aos="fade-up">
+            <div class="whois-header">
+                <span class="whois-icon">👤</span>
+                <h2 class="whois-title">Informazioni Intestatario Dominio</h2>
             </div>
             
-            <?php foreach ($dns_results as $type => $records): ?>
-            <?php if (!empty($records)): ?>
-            <div class="dns-type-section" data-aos="fade-up">
-                <h3 class="dns-type-title">
-                    <span class="dns-type-badge"><?php echo $type; ?></span>
-                    <?php echo getDnsTypeDescription($type); ?>
-                </h3>
-                
-                <div class="table-wrapper">
-                    <table class="dns-table">
-                        <thead>
-                            <tr>
-                                <?php echo getDnsTableHeaders($type); ?>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($records as $record): ?>
-                            <tr class="dns-row <?php echo getDnsRowClass($record, $type); ?>">
-                                <?php echo formatDnsRecord($record, $type); ?>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
+            <div class="whois-grid">
+                <?php if (isset($whois_info['owner'])): ?>
+                <div class="whois-item">
+                    <div class="whois-label">Intestatario</div>
+                    <div class="whois-value"><?php echo sanitizeOutput($whois_info['owner']); ?></div>
                 </div>
-            </div>
-            <?php endif; ?>
-            <?php endforeach; ?>
-            
-            <!-- Subdomain Analysis -->
-            <?php if (!empty($subdomain_analysis) && count($subdomain_analysis) > 0): ?>
-            <div class="subdomain-section" data-aos="fade-up">
-                <h3 class="section-subtitle">Sottodomini Rilevati</h3>
-                <div class="subdomain-grid">
-                    <?php foreach ($subdomain_analysis as $subdomain => $exists): ?>
-                    <?php if ($exists): ?>
-                    <div class="subdomain-card">
-                        <span class="subdomain-name"><?php echo htmlspecialchars($subdomain); ?></span>
-                        <span class="subdomain-status active">Attivo</span>
-                    </div>
-                    <?php endif; ?>
-                    <?php endforeach; ?>
+                <?php endif; ?>
+                <?php if (isset($whois_info['registrar'])): ?>
+                <div class="whois-item">
+                    <div class="whois-label">Registrar</div>
+                    <div class="whois-value"><?php echo sanitizeOutput($whois_info['registrar']); ?></div>
                 </div>
-            </div>
-            <?php endif; ?>
-        </div>
-    </section>
-    
-    <!-- WHOIS Information Section -->
-    <?php if (!empty($whois_info) && !isset($whois_info['error'])): ?>
-    <section id="whois-info" class="section">
-        <div class="container">
-            <div class="section-header" data-aos="fade-up">
-                <h2 class="section-title">Informazioni WHOIS</h2>
-                <p class="section-subtitle">Dati di registrazione del dominio</p>
-            </div>
-            
-            <div class="whois-content" data-aos="fade-up">
-                <div class="whois-grid">
-                    <?php if (isset($whois_info['registrar'])): ?>
-                    <div class="whois-item">
-                        <span class="whois-label">Registrar</span>
-                        <span class="whois-value"><?php echo sanitizeOutput($whois_info['registrar']); ?></span>
-                    </div>
-                    <?php endif; ?>
-                    
-                    <?php if (isset($whois_info['creation_date'])): ?>
-                    <div class="whois-item">
-                        <span class="whois-label">Data Registrazione</span>
-                        <span class="whois-value"><?php echo formatDate($whois_info['creation_date']); ?></span>
-                    </div>
-                    <?php endif; ?>
-                    
-                    <?php if (isset($whois_info['expiry_date'])): ?>
-                    <div class="whois-item">
-                        <span class="whois-label">Data Scadenza</span>
-                        <span class="whois-value <?php echo isExpiringSoon($whois_info['expiry_date']) ? 'text-warning' : ''; ?>">
-                            <?php echo formatDate($whois_info['expiry_date']); ?>
-                            <?php if (isExpiringSoon($whois_info['expiry_date'])): ?>
-                                <span class="badge badge-warning">In scadenza</span>
-                            <?php endif; ?>
-                        </span>
-                    </div>
-                    <?php endif; ?>
-                    
-                    <?php if (isset($whois_info['status'])): ?>
-                    <div class="whois-item">
-                        <span class="whois-label">Stato</span>
-                        <span class="whois-value">
-                            <?php foreach ((array)$whois_info['status'] as $status): ?>
-                                <span class="status-badge"><?php echo formatDomainStatus($status); ?></span>
-                            <?php endforeach; ?>
-                        </span>
-                    </div>
-                    <?php endif; ?>
-                    
-                    <?php if (isset($whois_info['nameservers'])): ?>
-                    <div class="whois-item whois-item-full">
-                        <span class="whois-label">Nameserver</span>
-                        <span class="whois-value">
-                            <?php foreach ($whois_info['nameservers'] as $ns): ?>
-                                <span class="nameserver-item"><?php echo sanitizeOutput($ns); ?></span>
-                            <?php endforeach; ?>
-                        </span>
-                    </div>
-                    <?php endif; ?>
+                <?php endif; ?>
+                <?php if (isset($whois_info['created'])): ?>
+                <div class="whois-item">
+                    <div class="whois-label">Data Registrazione</div>
+                    <div class="whois-value"><?php 
+                        echo sanitizeOutput($whois_info['created']);
+                        if ($whois_info['created'] != 'Non disponibile') {
+                            $age = calculateDomainAge($whois_info['created']);
+                            if ($age !== false) {
+                                echo ' <small>(' . floor($age / 365) . ' anni)</small>';
+                            }
+                        }
+                    ?></div>
                 </div>
-                
-                <?php if (isset($whois_info['raw']) && isset($_GET['debug'])): ?>
-                <div class="whois-raw">
-                    <h4>WHOIS Raw Data</h4>
-                    <pre><?php echo htmlspecialchars($whois_info['raw']); ?></pre>
+                <?php endif; ?>
+                <?php if (isset($whois_info['expires'])): ?>
+                <div class="whois-item">
+                    <div class="whois-label">Data Scadenza</div>
+                    <div class="whois-value <?php echo getExpirationClass(daysUntil($whois_info['expires'])); ?>">
+                        <?php 
+                        echo sanitizeOutput($whois_info['expires']);
+                        $days = daysUntil($whois_info['expires']);
+                        if ($days !== false) {
+                            echo ' <small>(' . $days . ' giorni)</small>';
+                        }
+                        ?>
+                    </div>
+                </div>
+                <?php endif; ?>
+                <?php if (isset($whois_info['updated'])): ?>
+                <div class="whois-item">
+                    <div class="whois-label">Ultimo Aggiornamento</div>
+                    <div class="whois-value"><?php echo sanitizeOutput($whois_info['updated']); ?></div>
+                </div>
+                <?php endif; ?>
+                <?php if (isset($whois_info['status'])): ?>
+                <div class="whois-item">
+                    <div class="whois-label">Stato</div>
+                    <div class="whois-value"><?php echo sanitizeOutput($whois_info['status']); ?></div>
+                </div>
+                <?php endif; ?>
+                <?php if (!empty($whois_info['nameservers'])): ?>
+                <div class="whois-item whois-item-full">
+                    <div class="whois-label">Nameserver</div>
+                    <div class="whois-value">
+                        <?php foreach ($whois_info['nameservers'] as $ns): ?>
+                            <span class="nameserver-badge"><?php echo sanitizeOutput($ns); ?></span>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
+                <?php if (isset($whois_info['dnssec']) && $whois_info['dnssec']): ?>
+                <div class="whois-item">
+                    <div class="whois-label">DNSSEC</div>
+                    <div class="whois-value"><span class="badge badge-success">Attivo</span></div>
                 </div>
                 <?php endif; ?>
             </div>
-        </div>
-    </section>
-    <?php endif; ?>
-    
-    <!-- Blacklist Check Section -->
-    <?php if (!empty($blacklist_results['results'])): ?>
-    <section id="blacklist-check" class="section section-alt">
-        <div class="container">
-            <div class="section-header" data-aos="fade-up">
-                <h2 class="section-title">Controllo Blacklist</h2>
-                <p class="section-subtitle">Verifica presenza in <?php echo $blacklist_results['checked']; ?> blacklist principali</p>
+        </section>
+        <?php endif; ?>
+        
+        <!-- Cloud Services Detection -->
+        <?php if ($cloud_services && !empty($cloud_services['detected'])): ?>
+        <section class="cloud-section" data-aos="fade-up">
+            <div class="cloud-header">
+                <span class="cloud-icon">☁️</span>
+                <h2 class="cloud-title">Servizi Cloud Rilevati</h2>
             </div>
             
-            <div class="blacklist-summary" data-aos="fade-up">
-                <div class="blacklist-score <?php echo $blacklist_results['listed'] > 0 ? 'warning' : 'success'; ?>">
-                    <span class="score-icon"><?php echo $blacklist_results['listed'] > 0 ? '⚠️' : '✅'; ?></span>
-                    <span class="score-text">
-                        <?php if ($blacklist_results['listed'] > 0): ?>
-                            Trovato in <?php echo $blacklist_results['listed']; ?> blacklist
-                        <?php else: ?>
-                            Nessuna blacklist rilevata
+            <div class="cloud-grid">
+                <?php foreach ($cloud_services['detected'] as $service => $details): ?>
+                <div class="cloud-card">
+                    <div class="cloud-card-header">
+                        <span class="cloud-service-icon"><?php echo getServiceIcon($service); ?></span>
+                        <h3><?php echo htmlspecialchars($service); ?></h3>
+                    </div>
+                    <div class="cloud-card-body">
+                        <p class="confidence-level">
+                            Confidenza: <strong><?php echo $details['confidence']; ?>%</strong>
+                        </p>
+                        <?php if (!empty($details['indicators'])): ?>
+                        <div class="indicators">
+                            <p class="indicators-label">Indicatori trovati:</p>
+                            <ul class="indicators-list">
+                                <?php foreach ($details['indicators'] as $indicator): ?>
+                                <li><?php echo htmlspecialchars($indicator); ?></li>
+                                <?php endforeach; ?>
+                            </ul>
+                        </div>
                         <?php endif; ?>
-                    </span>
-                </div>
-            </div>
-            
-            <div class="blacklist-grid" data-aos="fade-up">
-                <?php foreach ($blacklist_results['results'] as $bl): ?>
-                <div class="blacklist-item <?php echo $bl['listed'] ? 'listed' : 'clean'; ?>">
-                    <span class="bl-status"><?php echo $bl['listed'] ? '❌' : '✅'; ?></span>
-                    <span class="bl-name"><?php echo htmlspecialchars($bl['name']); ?></span>
-                    <?php if ($bl['listed'] && isset($bl['reason'])): ?>
-                        <span class="bl-reason"><?php echo htmlspecialchars($bl['reason']); ?></span>
-                    <?php endif; ?>
+                    </div>
                 </div>
                 <?php endforeach; ?>
             </div>
+        </section>
+        <?php endif; ?>
+        
+        <!-- DNS Records -->
+        <?php if ($dns_results): ?>
+        <section class="dns-section" data-aos="fade-up">
+            <div class="dns-header">
+                <span class="dns-icon">🔍</span>
+                <h2 class="dns-title">Record DNS</h2>
+                <div class="dns-actions">
+                    <button class="btn btn-secondary" onclick="exportDNS()">
+                        <span>📥</span> Esporta
+                    </button>
+                    <button class="btn btn-secondary" onclick="copyAllDNS()">
+                        <span>📋</span> Copia Tutto
+                    </button>
+                </div>
+            </div>
             
-            <?php if ($blacklist_results['listed'] > 0): ?>
-            <div class="blacklist-help" data-aos="fade-up">
-                <h4>Come rimuovere il dominio dalle blacklist?</h4>
-                <ol>
-                    <li>Identifica e risolvi il problema che ha causato il listing</li>
-                    <li>Contatta ogni blacklist per richiedere la rimozione</li>
-                    <li>Implementa misure di sicurezza per prevenire futuri listing</li>
-                    <li>Monitora regolarmente lo stato delle blacklist</li>
-                </ol>
+            <div class="dns-tabs">
+                <div class="tabs-nav">
+                    <?php foreach ($dns_results as $type => $records): ?>
+                    <button class="tab-btn <?php echo $type == 'A' ? 'active' : ''; ?>" 
+                            data-tab="<?php echo $type; ?>">
+                        <?php echo $type; ?> 
+                        <span class="record-count"><?php echo count($records); ?></span>
+                    </button>
+                    <?php endforeach; ?>
+                </div>
+                
+                <div class="tabs-content">
+                    <?php foreach ($dns_results as $type => $records): ?>
+                    <div class="tab-pane <?php echo $type == 'A' ? 'active' : ''; ?>" 
+                         data-tab-content="<?php echo $type; ?>">
+                        <div class="table-wrapper">
+                            <table class="dns-table">
+                                <thead>
+                                    <tr>
+                                        <?php echo getDNSTableHeaders($type); ?>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($records as $record): ?>
+                                    <tr>
+                                        <?php echo formatDNSRecord($type, $record); ?>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </section>
+        <?php endif; ?>
+        
+        <!-- Email Configuration Analysis -->
+        <?php if (isset($email_config) && $email_config['has_mx']): ?>
+        <section class="email-section" data-aos="fade-up">
+            <div class="email-header">
+                <span class="email-icon">✉️</span>
+                <h2 class="email-title">Configurazione Email</h2>
+            </div>
+            
+            <div class="email-grid">
+                <div class="email-stat">
+                    <div class="email-stat-icon">📧</div>
+                    <div class="email-stat-value"><?php echo $email_config['mx_count']; ?></div>
+                    <div class="email-stat-label">Server MX</div>
+                </div>
+                
+                <div class="email-stat">
+                    <div class="email-stat-icon <?php echo $email_config['has_spf'] ? 'success' : 'warning'; ?>">
+                        <?php echo $email_config['has_spf'] ? '✅' : '⚠️'; ?>
+                    </div>
+                    <div class="email-stat-value">SPF</div>
+                    <div class="email-stat-label"><?php echo $email_config['has_spf'] ? 'Configurato' : 'Non trovato'; ?></div>
+                </div>
+                
+                <div class="email-stat">
+                    <div class="email-stat-icon <?php echo $email_config['has_dkim'] ? 'success' : 'warning'; ?>">
+                        <?php echo $email_config['has_dkim'] ? '✅' : '⚠️'; ?>
+                    </div>
+                    <div class="email-stat-value">DKIM</div>
+                    <div class="email-stat-label"><?php echo $email_config['has_dkim'] ? 'Attivo' : 'Non configurato'; ?></div>
+                </div>
+                
+                <div class="email-stat">
+                    <div class="email-stat-icon <?php echo $email_config['has_dmarc'] ? 'success' : 'warning'; ?>">
+                        <?php echo $email_config['has_dmarc'] ? '✅' : '⚠️'; ?>
+                    </div>
+                    <div class="email-stat-value">DMARC</div>
+                    <div class="email-stat-label"><?php echo $email_config['has_dmarc'] ? 'Attivo' : 'Non configurato'; ?></div>
+                </div>
+            </div>
+            
+            <?php if (isset($email_config['email_provider']) && $email_config['email_provider']): ?>
+            <div class="email-provider">
+                <p>Provider Email Rilevato: <strong><?php echo htmlspecialchars($email_config['email_provider']); ?></strong></p>
             </div>
             <?php endif; ?>
-        </div>
-    </section>
-    <?php endif; ?>
-    
-    <!-- Email Configuration Section -->
-    <?php if (!empty($email_config)): ?>
-    <section id="email-config" class="section">
-        <div class="container">
-            <div class="section-header" data-aos="fade-up">
-                <h2 class="section-title">Configurazione Email</h2>
-                <p class="section-subtitle">Analisi SPF, DKIM e DMARC</p>
-            </div>
             
-            <div class="email-config-grid" data-aos="fade-up">
-                <!-- SPF -->
-                <div class="config-card <?php echo $email_config['has_spf'] ? 'success' : 'warning'; ?>">
-                    <div class="config-header">
-                        <span class="config-icon"><?php echo $email_config['has_spf'] ? '✅' : '⚠️'; ?></span>
-                        <h3>SPF Record</h3>
-                    </div>
-                    <div class="config-content">
-                        <?php if ($email_config['has_spf']): ?>
-                            <p class="config-status">SPF configurato correttamente</p>
-                            <code class="spf-record"><?php echo htmlspecialchars($email_config['spf_record']); ?></code>
-                            <?php if (!empty($email_config['spf_includes'])): ?>
-                                <div class="spf-includes">
-                                    <h4>Include:</h4>
-                                    <ul>
-                                        <?php foreach ($email_config['spf_includes'] as $include): ?>
-                                            <li><?php echo htmlspecialchars($include); ?></li>
-                                        <?php endforeach; ?>
-                                    </ul>
-                                </div>
-                            <?php endif; ?>
-                        <?php else: ?>
-                            <p class="config-status">SPF non configurato</p>
-                            <p class="config-help">Aggiungi un record TXT SPF per autenticare le email inviate dal tuo dominio.</p>
-                        <?php endif; ?>
-                    </div>
-                </div>
-                
-                <!-- DKIM -->
-                <div class="config-card <?php echo $email_config['has_dkim'] ? 'success' : 'info'; ?>">
-                    <div class="config-header">
-                        <span class="config-icon"><?php echo $email_config['has_dkim'] ? '✅' : 'ℹ️'; ?></span>
-                        <h3>DKIM</h3>
-                    </div>
-                    <div class="config-content">
-                        <?php if ($email_config['has_dkim']): ?>
-                            <p class="config-status">DKIM rilevato</p>
-                            <p class="config-help">Selettori DKIM trovati nel dominio.</p>
-                        <?php else: ?>
-                            <p class="config-status">DKIM non rilevato</p>
-                            <p class="config-help">Configura DKIM per firmare digitalmente le tue email.</p>
-                        <?php endif; ?>
-                    </div>
-                </div>
-                
-                <!-- DMARC -->
-                <div class="config-card <?php echo $email_config['has_dmarc'] ? 'success' : 'warning'; ?>">
-                    <div class="config-header">
-                        <span class="config-icon"><?php echo $email_config['has_dmarc'] ? '✅' : '⚠️'; ?></span>
-                        <h3>DMARC Policy</h3>
-                    </div>
-                    <div class="config-content">
-                        <?php if ($email_config['has_dmarc']): ?>
-                            <p class="config-status">DMARC configurato</p>
-                            <code class="dmarc-record"><?php echo htmlspecialchars($email_config['dmarc_record']); ?></code>
-                            <div class="dmarc-policy">
-                                <span class="policy-label">Policy:</span>
-                                <span class="policy-value <?php echo getDmarcPolicyClass($email_config['dmarc_policy']); ?>">
-                                    <?php echo strtoupper($email_config['dmarc_policy']); ?>
-                                </span>
-                            </div>
-                        <?php else: ?>
-                            <p class="config-status">DMARC non configurato</p>
-                            <p class="config-help">Implementa DMARC per proteggere il tuo dominio dal phishing.</p>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Email Security Score -->
-            <div class="email-security-score" data-aos="fade-up">
-                <h3>Punteggio Sicurezza Email</h3>
-                <div class="security-score-bar">
-                    <div class="score-fill" style="width: <?php echo calculateEmailScore($email_config); ?>%"></div>
-                </div>
-                <p class="score-text"><?php echo calculateEmailScore($email_config); ?>% - <?php echo getEmailScoreText(calculateEmailScore($email_config)); ?></p>
-            </div>
-        </div>
-    </section>
-    <?php endif; ?>
-    
-    <!-- Recommendations Section -->
-    <?php if (!empty($suggestions)): ?>
-    <section id="recommendations" class="section section-alt">
-        <div class="container">
-            <div class="section-header" data-aos="fade-up">
-                <h2 class="section-title">Raccomandazioni</h2>
-                <p class="section-subtitle">Suggerimenti per migliorare la configurazione del dominio</p>
-            </div>
-            
-            <div class="recommendations-grid" data-aos="fade-up">
-                <?php foreach ($suggestions as $rec): ?>
-                <div class="recommendation-card <?php echo $rec['priority']; ?>">
-                    <span class="rec-icon"><?php echo $rec['priority'] == 'high' ? '⚠️' : '💡'; ?></span>
-                    <div>
-                        <strong><?php echo sanitizeOutput($rec['message']); ?></strong>
-                        <p><?php echo sanitizeOutput($rec['action']); ?></p>
-                    </div>
-                </div>
-                <?php endforeach; ?>
+            <?php if (!empty($email_config['recommendations'])): ?>
+            <div class="email-recommendations">
+                <h3>Raccomandazioni</h3>
+                <ul>
+                    <?php foreach ($email_config['recommendations'] as $rec): ?>
+                    <li><?php echo htmlspecialchars($rec); ?></li>
+                    <?php endforeach; ?>
+                </ul>
             </div>
             <?php endif; ?>
         </section>
         <?php endif; ?>
         
-        <!-- Cloud Services -->
-        <?php if (!empty($cloud_services['detected_services']) && is_array($cloud_services['detected_services'])): ?>
-        <section class="cloud-services" data-aos="fade-up">
-            <div class="cloud-header">
-                <span class="cloud-icon">☁️</span>
-                <div class="cloud-content">
-                    <h2 class="cloud-title">Servizi Cloud Rilevati</h2>
-                    <p>Abbiamo identificato <?php echo count($cloud_services['detected_services']); ?> servizi cloud configurati per questo dominio</p>
+        <!-- Blacklist Check -->
+        <?php if ($blacklist_results): ?>
+        <section class="blacklist-section" data-aos="fade-up">
+            <div class="blacklist-header">
+                <span class="blacklist-icon">🚫</span>
+                <h2 class="blacklist-title">Controllo Blacklist</h2>
+            </div>
+            
+            <div class="blacklist-overview">
+                <div class="reputation-gauge">
+                    <div class="gauge-circle" style="--score: <?php echo $blacklist_results['reputation']['score']; ?>">
+                        <svg viewBox="0 0 200 200">
+                            <circle cx="100" cy="100" r="90" fill="none" stroke="#e0e0e0" stroke-width="15"/>
+                            <circle cx="100" cy="100" r="90" fill="none" 
+                                    stroke="<?php echo getReputationColor($blacklist_results['reputation']['score']); ?>" 
+                                    stroke-width="15" 
+                                    stroke-dasharray="<?php echo 565.48 * ($blacklist_results['reputation']['score'] / 100); ?> 565.48"
+                                    stroke-linecap="round"
+                                    transform="rotate(-90 100 100)"/>
+                        </svg>
+                        <div class="gauge-text">
+                            <span class="gauge-value"><?php echo $blacklist_results['reputation']['score']; ?>%</span>
+                            <span class="gauge-label">Reputazione</span>
+                        </div>
+                    </div>
+                    <p class="reputation-status" style="color: <?php echo getReputationColor($blacklist_results['reputation']['score']); ?>">
+                        <?php echo $blacklist_results['reputation']['rating']; ?>
+                    </p>
+                </div>
+                
+                <div class="blacklist-stats">
+                    <div class="blacklist-stat">
+                        <div class="blacklist-stat-value" style="color: <?php echo $blacklist_results['statistics']['total_listings'] > 0 ? 'var(--error)' : 'var(--success)'; ?>">
+                            <?php echo $blacklist_results['statistics']['total_listings']; ?>
+                        </div>
+                        <div class="blacklist-stat-label">Presenze in Blacklist</div>
+                    </div>
+                    <div class="blacklist-stat">
+                        <div class="blacklist-stat-value"><?php echo $blacklist_results['statistics']['total_checks']; ?></div>
+                        <div class="blacklist-stat-label">Controlli Totali</div>
+                    </div>
+                    <div class="blacklist-stat">
+                        <div class="blacklist-stat-value"><?php echo count($blacklist_results['ips_checked']); ?></div>
+                        <div class="blacklist-stat-label">IP Verificati</div>
+                    </div>
                 </div>
             </div>
             
-            <div class="cloud-grid">
-                <?php foreach ($cloud_services['detected_services'] as $service_id => $service): ?>
-                <div class="cloud-card">
-                    <div class="cloud-service-name">
-                        <span><?php echo isset($service['category']) && $service['category'] == 'email' ? '📧' : '☁️'; ?></span>
-                        <?php echo htmlspecialchars($service['name'] ?? 'Servizio Cloud'); ?>
+            <?php if (!empty($blacklist_results['listings'])): ?>
+            <div class="blacklist-issues">
+                <h3><span>⚠️</span> IP Presenti in Blacklist</h3>
+                <div class="issues-grid">
+                    <?php 
+                    $grouped_listings = array();
+                    foreach ($blacklist_results['listings'] as $listing) {
+                        $key = $listing['ip'];
+                        if (!isset($grouped_listings[$key])) {
+                            $grouped_listings[$key] = array(
+                                'ip' => $listing['ip'],
+                                'source' => $listing['source'],
+                                'blacklists' => array()
+                            );
+                        }
+                        $grouped_listings[$key]['blacklists'][] = $listing['blacklist'];
+                    }
+                    ?>
+                    <?php foreach ($grouped_listings as $ip_data): ?>
+                    <div class="issue-card">
+                        <div class="issue-header">
+                            <span class="issue-ip"><?php echo htmlspecialchars($ip_data['ip']); ?></span>
+                            <span class="issue-source"><?php echo htmlspecialchars($ip_data['source']); ?></span>
+                        </div>
+                        <div class="issue-blacklists">
+                            <?php foreach ($ip_data['blacklists'] as $bl): ?>
+                            <span class="blacklist-badge"><?php echo htmlspecialchars($bl); ?></span>
+                            <?php endforeach; ?>
+                        </div>
                     </div>
-                    <div class="cloud-service-details">
-                        <span class="service-category"><?php echo htmlspecialchars($service['category'] ?? 'cloud'); ?></span>
-                        <span class="service-confidence confidence-<?php echo htmlspecialchars($service['confidence'] ?? 'medium'); ?>">
-                            <?php echo ucfirst($service['confidence'] ?? 'medium'); ?> confidence
-                        </span>
-                    </div>
-                    <?php if (!empty($service['indicators'])): ?>
-                    <div class="service-indicators">
-                        <?php foreach (array_slice($service['indicators'], 0, 3) as $indicator): ?>
-                            <small><?php echo htmlspecialchars($indicator); ?></small>
-                        <?php endforeach; ?>
-                    </div>
-                    <?php endif; ?>
+                    <?php endforeach; ?>
                 </div>
-                <?php endforeach; ?>
             </div>
+            <?php else: ?>
+            <div class="blacklist-clean">
+                <h3><span>✅</span> Nessuna presenza in blacklist rilevata!</h3>
+                <p>Tutti gli IP del dominio hanno una reputazione pulita.</p>
+            </div>
+            <?php endif; ?>
         </section>
         <?php endif; ?>
+        
+        <!-- Security Analysis -->
+        <?php if (isset($security_analysis)): ?>
+        <section class="security-section" data-aos="fade-up">
+            <div class="security-header">
+                <span class="security-icon">🔒</span>
+                <h2 class="security-title">Analisi Sicurezza</h2>
+            </div>
+            
+            <div class="security-grid">
+                <div class="security-item <?php echo $security_analysis['has_caa'] ? 'enabled' : 'disabled'; ?>">
+                    <div class="security-item-icon"><?php echo $security_analysis['has_caa'] ? '✅' : '❌'; ?></div>
+                    <div class="security-item-content">
+                        <h4>CAA Records</h4>
+                        <p><?php echo $security_analysis['has_caa'] ? 'Configurati' : 'Non configurati'; ?></p>
+                    </div>
+                </div>
+                
+                <div class="security-item <?php echo (isset($whois_info['dnssec']) && $whois_info['dnssec']) ? 'enabled' : 'disabled'; ?>">
+                    <div class="security-item-icon"><?php echo (isset($whois_info['dnssec']) && $whois_info['dnssec']) ? '✅' : '❌'; ?></div>
+                    <div class="security-item-content">
+                        <h4>DNSSEC</h4>
+                        <p><?php echo (isset($whois_info['dnssec']) && $whois_info['dnssec']) ? 'Attivo' : 'Non attivo'; ?></p>
+                    </div>
+                </div>
+                
+                <div class="security-item <?php echo $security_analysis['has_tlsa'] ? 'enabled' : 'disabled'; ?>">
+                    <div class="security-item-icon"><?php echo $security_analysis['has_tlsa'] ? '✅' : '❌'; ?></div>
+                    <div class="security-item-content">
+                        <h4>DANE/TLSA</h4>
+                        <p><?php echo $security_analysis['has_tlsa'] ? 'Configurato' : 'Non configurato'; ?></p>
+                    </div>
+                </div>
+            </div>
+            
+            <?php if (!empty($security_analysis['recommendations'])): ?>
+            <div class="security-recommendations">
+                <h3>Raccomandazioni di Sicurezza</h3>
+                <ul>
+                    <?php foreach ($security_analysis['recommendations'] as $rec): ?>
+                    <li><?php echo htmlspecialchars($rec); ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+            <?php endif; ?>
+        </section>
+        <?php endif; ?>
+        
     </div>
 </section>
 <?php endif; ?>
 
-<!-- Features Section -->
-<section id="features" class="section">
-    <div class="container">
-        <div class="section-header" data-aos="fade-up">
-            <h2 class="section-title">Funzionalità Complete</h2>
-            <p class="section-subtitle">Tutto quello che serve per analizzare e monitorare i tuoi domini</p>
-        </div>
-        
-        <div class="features-grid">
-            <div class="feature-card" data-aos="fade-up" data-aos-delay="100">
-                <div class="feature-icon">
-                    <span>🔍</span>
-                </div>
-                <h3>Analisi DNS Completa</h3>
-                <p>Verifica tutti i record DNS inclusi A, AAAA, MX, TXT, CNAME, NS e molto altro.</p>
-            </div>
-            
-            <div class="feature-card" data-aos="fade-up" data-aos-delay="200">
-                <div class="feature-icon">
-                    <span>📊</span>
-                </div>
-                <h3>Informazioni WHOIS</h3>
-                <p>Ottieni dettagli su proprietà, registrar, date di scadenza e stato del dominio.</p>
-            </div>
-            
-            <div class="feature-card" data-aos="fade-up" data-aos-delay="300">
-                <div class="feature-icon">
-                    <span>🚫</span>
-                </div>
-                <h3>Controllo Blacklist</h3>
-                <p>Verifica la presenza in oltre 30 blacklist per proteggere la tua reputazione.</p>
-            </div>
-            
-            <div class="feature-card" data-aos="fade-up" data-aos-delay="400">
-                <div class="feature-icon">
-                    <span>☁️</span>
-                </div>
-                <h3>Rilevamento Cloud</h3>
-                <p>Identifica automaticamente servizi cloud come Office 365, Google Workspace, AWS.</p>
-            </div>
-            
-            <div class="feature-card" data-aos="fade-up" data-aos-delay="500">
-                <div class="feature-icon">
-                    <span>🔒</span>
-                </div>
-                <h3>Analisi Sicurezza</h3>
-                <p>Controlla SPF, DKIM, DMARC, DNSSEC e altre configurazioni di sicurezza.</p>
-            </div>
-            
-            <div class="feature-card" data-aos="fade-up" data-aos-delay="600">
-                <div class="feature-icon">
-                    <span>⚡</span>
-                </div>
-                <h3>Performance DNS</h3>
-                <p>Analizza tempi di risposta, TTL e ottimizzazione delle query DNS.</p>
-            </div>
-        </div>
-    </div>
-</section>
+<?php
+// Include footer
+require_once ABSPATH . 'templates/footer.php';
 
-<!-- How It Works Section -->
-<section id="how-it-works" class="section section-alt">
-    <div class="container">
-        <div class="section-header" data-aos="fade-up">
-            <h2 class="section-title">Come Funziona</h2>
-            <p class="section-subtitle">Analizza qualsiasi dominio in 3 semplici passaggi</p>
-        </div>
-        
-        <div class="steps-container">
-            <div class="step" data-aos="fade-right" data-aos-delay="100">
-                <div class="step-number">1</div>
-                <div class="step-content">
-                    <h3>Inserisci il Dominio</h3>
-                    <p>Digita il nome del dominio che vuoi analizzare nel campo di ricerca.</p>
-                </div>
-            </div>
-            
-            <div class="step" data-aos="fade-right" data-aos-delay="200">
-                <div class="step-number">2</div>
-                <div class="step-content">
-                    <h3>Analisi Automatica</h3>
-                    <p>Il sistema esegue controlli approfonditi su DNS, WHOIS, blacklist e servizi cloud.</p>
-                </div>
-            </div>
-            
-            <div class="step" data-aos="fade-right" data-aos-delay="300">
-                <div class="step-number">3</div>
-                <div class="step-content">
-                    <h3>Risultati Dettagliati</h3>
-                    <p>Ricevi un report completo con suggerimenti per ottimizzare la configurazione.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
+// Helper functions per la visualizzazione
+function getDNSTableHeaders($type) {
+    $headers = array(
+        'A' => '<th>Host</th><th>IP</th><th>TTL</th>',
+        'AAAA' => '<th>Host</th><th>IPv6</th><th>TTL</th>',
+        'MX' => '<th>Host</th><th>Priority</th><th>Mail Server</th><th>TTL</th>',
+        'TXT' => '<th>Host</th><th>Value</th><th>TTL</th>',
+        'NS' => '<th>Host</th><th>Nameserver</th><th>TTL</th>',
+        'CNAME' => '<th>Host</th><th>Target</th><th>TTL</th>',
+        'SOA' => '<th>Host</th><th>Primary NS</th><th>Email</th><th>Serial</th><th>TTL</th>',
+        'SRV' => '<th>Service</th><th>Priority</th><th>Weight</th><th>Port</th><th>Target</th><th>TTL</th>',
+        'CAA' => '<th>Host</th><th>Flags</th><th>Tag</th><th>Value</th><th>TTL</th>'
+    );
+    
+    return isset($headers[$type]) ? $headers[$type] : '<th>Type</th><th>Value</th><th>TTL</th>';
+}
 
-<!-- FAQ Section -->
-<section id="faq" class="section">
-    <div class="container">
-        <div class="section-header" data-aos="fade-up">
-            <h2 class="section-title">Domande Frequenti</h2>
-            <p class="section-subtitle">Risposte alle domande più comuni sul nostro servizio</p>
-        </div>
-        
-        <div class="faq-container" data-aos="fade-up">
-            <div class="faq-item">
-                <h3 class="faq-question">
-                    <span class="faq-icon">+</span>
-                    Quanto costa utilizzare Controllo Domini?
-                </h3>
-                <div class="faq-answer">
-                    <p>Controllo Domini è completamente gratuito per uso personale e professionale. Non richiediamo registrazione né carta di credito.</p>
-                </div>
-            </div>
+function formatDNSRecord($type, $record) {
+    $html = '';
+    
+    switch ($type) {
+        case 'A':
+            $html = sprintf(
+                '<td>%s</td><td><code>%s</code></td><td>%s</td>',
+                htmlspecialchars($record['host']),
+                htmlspecialchars($record['ip']),
+                formatTTL($record['ttl'])
+            );
+            break;
             
-            <div class="faq-item">
-                <h3 class="faq-question">
-                    <span class="faq-icon">+</span>
-                    Quali tipi di domini posso analizzare?
-                </h3>
-                <div class="faq-answer">
-                    <p>Puoi analizzare qualsiasi dominio valido con estensioni come .com, .it, .org, .net e molte altre. Supportiamo anche domini internazionalizzati (IDN).</p>
-                </div>
-            </div>
+        case 'AAAA':
+            $html = sprintf(
+                '<td>%s</td><td><code>%s</code></td><td>%s</td>',
+                htmlspecialchars($record['host']),
+                htmlspecialchars($record['ipv6']),
+                formatTTL($record['ttl'])
+            );
+            break;
             
-            <div class="faq-item">
-                <h3 class="faq-question">
-                    <span class="faq-icon">+</span>
-                    I miei dati sono al sicuro?
-                </h3>
-                <div class="faq-answer">
-                    <p>Assolutamente sì. Non salviamo dati personali e tutte le analisi vengono eseguite in tempo reale. I risultati sono visibili solo a te.</p>
-                </div>
-            </div>
+        case 'MX':
+            $html = sprintf(
+                '<td>%s</td><td>%d</td><td>%s</td><td>%s</td>',
+                htmlspecialchars($record['host']),
+                $record['pri'],
+                htmlspecialchars($record['target']),
+                formatTTL($record['ttl'])
+            );
+            break;
             
-            <div class="faq-item">
-                <h3 class="faq-question">
-                    <span class="faq-icon">+</span>
-                    Quanto spesso vengono aggiornati i dati?
-                </h3>
-                <div class="faq-answer">
-                    <p>Tutti i dati vengono recuperati in tempo reale dai server DNS autoritativi e dai database WHOIS ufficiali, garantendo informazioni sempre aggiornate.</p>
-                </div>
-            </div>
+        case 'TXT':
+            $html = sprintf(
+                '<td>%s</td><td><code class="txt-value">%s</code></td><td>%s</td>',
+                htmlspecialchars($record['host']),
+                htmlspecialchars($record['txt']),
+                formatTTL($record['ttl'])
+            );
+            break;
             
-            <div class="faq-item">
-                <h3 class="faq-question">
-                    <span class="faq-icon">+</span>
-                    Posso utilizzare l'API per integrazioni?
-                </h3>
-                <div class="faq-answer">
-                    <p>Sì, offriamo un'API RESTful per sviluppatori e aziende che necessitano di integrare le nostre funzionalità nelle loro applicazioni. Contattaci per maggiori informazioni.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
+        case 'NS':
+            $html = sprintf(
+                '<td>%s</td><td>%s</td><td>%s</td>',
+                htmlspecialchars($record['host']),
+                htmlspecialchars($record['target']),
+                formatTTL($record['ttl'])
+            );
+            break;
+            
+        case 'CNAME':
+            $html = sprintf(
+                '<td>%s</td><td>%s</td><td>%s</td>',
+                htmlspecialchars($record['host']),
+                htmlspecialchars($record['target']),
+                formatTTL($record['ttl'])
+            );
+            break;
+            
+        case 'SOA':
+            $html = sprintf(
+                '<td>%s</td><td>%s</td><td>%s</td><td>%d</td><td>%s</td>',
+                htmlspecialchars($record['host']),
+                htmlspecialchars($record['mname']),
+                htmlspecialchars($record['rname']),
+                $record['serial'],
+                formatTTL($record['ttl'])
+            );
+            break;
+            
+        case 'CAA':
+            $html = sprintf(
+                '<td>%s</td><td>%d</td><td>%s</td><td>%s</td><td>%s</td>',
+                htmlspecialchars($record['host']),
+                $record['flags'],
+                htmlspecialchars($record['tag']),
+                htmlspecialchars($record['value']),
+                formatTTL($record['ttl'])
+            );
+            break;
+            
+        default:
+            $html = sprintf(
+                '<td>%s</td><td>%s</td><td>%s</td>',
+                $type,
+                htmlspecialchars(print_r($record, true)),
+                isset($record['ttl']) ? formatTTL($record['ttl']) : 'N/A'
+            );
+    }
+    
+    return $html;
+}
 
-<!-- CTA Section -->
-<section id="cta" class="section cta-section">
-    <div class="container">
-        <div class="cta-content" data-aos="zoom-in">
-            <h2>Inizia Subito l'Analisi del Tuo Dominio</h2>
-            <p>Scopri tutto sulla configurazione e la sicurezza del tuo dominio in pochi secondi</p>
-            <a href="#domain-check" class="btn btn-white btn-lg smooth-scroll">
-                Analizza Ora
-            </a>
-        </div>
-    </div>
-</section>
+function getServiceIcon($service) {
+    $icons = array(
+        'Microsoft 365' => '🏢',
+        'Google Workspace' => '🔷',
+        'Cloudflare' => '☁️',
+        'Amazon Web Services' => '🚀',
+        'GoDaddy' => '🌐',
+        'Aruba' => '🇮🇹',
+        'OVH' => '🇫🇷',
+        'DigitalOcean' => '🌊',
+        'Namecheap' => '💰'
+    );
+    
+    return isset($icons[$service]) ? $icons[$service] : '☁️';
+}
 
-<?php require_once ABSPATH . 'templates/footer.php'; ?>
+function getReputationColor($score) {
+    if ($score >= 95) return '#26de81';
+    if ($score >= 85) return '#20bf6b';
+    if ($score >= 70) return '#ffa502';
+    if ($score >= 50) return '#ff6348';
+    return '#ee5a6f';
+}
+
+function calculateDomainHealth($data) {
+    $score = 100;
+    $issues = array();
+    
+    // Penalità per tempo di risposta
+    if ($data['response_time'] > 1000) {
+        $score -= 10;
+        $issues[] = 'Tempo di risposta elevato';
+    } elseif ($data['response_time'] > 500) {
+        $score -= 5;
+    }
+    
+    // Penalità per blacklist
+    if (isset($data['blacklist']['statistics']['total_listings']) && 
+        $data['blacklist']['statistics']['total_listings'] > 0) {
+        $score -= min(30, $data['blacklist']['statistics']['total_listings'] * 5);
+        $issues[] = 'Presenza in blacklist';
+    }
+    
+    // Penalità per mancanza SPF/DKIM/DMARC
+    if (isset($data['email'])) {
+        if ($data['email']['has_mx'] && !$data['email']['has_spf']) {
+            $score -= 10;
+            $issues[] = 'SPF non configurato';
+        }
+        if ($data['email']['has_mx'] && !$data['email']['has_dmarc']) {
+            $score -= 5;
+            $issues[] = 'DMARC non configurato';
+        }
+    }
+    
+    // Penalità per mancanza DNSSEC
+    if (isset($data['whois']['dnssec']) && !$data['whois']['dnssec']) {
+        $score -= 5;
+    }
+    
+    // Penalità per scadenza imminente
+    if (isset($data['whois']['expires'])) {
+        $days_to_expiry = daysUntil($data['whois']['expires']);
+        if ($days_to_expiry !== false) {
+            if ($days_to_expiry < 0) {
+                $score -= 50;
+                $issues[] = 'Dominio scaduto!';
+            } elseif ($days_to_expiry < 30) {
+                $score -= 20;
+                $issues[] = 'Scadenza imminente';
+            } elseif ($days_to_expiry < 90) {
+                $score -= 10;
+                $issues[] = 'Scadenza prossima';
+            }
+        }
+    }
+    
+    // Normalizza score
+    $score = max(0, min(100, $score));
+    
+    // Determina stato
+    if ($score >= 90) {
+        $status_text = 'Eccellente';
+        $status_class = 'health-excellent';
+    } elseif ($score >= 75) {
+        $status_text = 'Buono';
+        $status_class = 'health-good';
+    } elseif ($score >= 60) {
+        $status_text = 'Sufficiente';
+        $status_class = 'health-fair';
+    } elseif ($score >= 40) {
+        $status_text = 'Problematico';
+        $status_class = 'health-poor';
+    } else {
+        $status_text = 'Critico';
+        $status_class = 'health-critical';
+    }
+    
+    return array(
+        'score' => $score,
+        'status_text' => $status_text,
+        'status_class' => $status_class,
+        'issues' => $issues
+    );
+}
+
+// Definizione funzione getBreadcrumb se non esiste
+if (!function_exists('getBreadcrumb')) {
+    function getBreadcrumb($page_name) {
+        return array(
+            array('name' => 'Home', 'url' => '/'),
+            array('name' => $page_name, 'url' => '')
+        );
+    }
+}
+?>
