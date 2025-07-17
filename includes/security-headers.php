@@ -22,7 +22,8 @@ function analyzeSecurityHeaders($domain) {
         'missing' => array(),
         'warnings' => array(),
         'passed' => array(),
-        'raw_headers' => array()
+        'raw_headers' => array(),
+        'recommendations' => array()
     );
     
     // URL da testare (sia HTTP che HTTPS)
@@ -176,6 +177,9 @@ function analyzeSecurityHeaders($domain) {
     
     // Controlla altri header importanti
     $results['additional_headers'] = checkAdditionalHeaders($results['raw_headers']);
+    
+    // Genera raccomandazioni
+    $results['recommendations'] = generateSecurityRecommendations($results);
     
     return $results;
 }
@@ -392,10 +396,13 @@ function checkAdditionalHeaders($headers) {
     
     // Server header
     if (isset($headers['server'])) {
+        // Gestisci il caso in cui server possa essere un array
+        $server_value = is_array($headers['server']) ? $headers['server'][0] : $headers['server'];
+        
         $additional['server'] = array(
-            'value' => $headers['server'],
-            'warning' => strpos($headers['server'], '/') !== false,
-            'message' => strpos($headers['server'], '/') !== false 
+            'value' => $server_value,
+            'warning' => strpos($server_value, '/') !== false,
+            'message' => strpos($server_value, '/') !== false 
                 ? 'Espone versione del server' 
                 : 'Non espone versione'
         );
@@ -403,8 +410,11 @@ function checkAdditionalHeaders($headers) {
     
     // X-Powered-By
     if (isset($headers['x-powered-by'])) {
+        // Gestisci il caso in cui x-powered-by possa essere un array
+        $powered_by_value = is_array($headers['x-powered-by']) ? $headers['x-powered-by'][0] : $headers['x-powered-by'];
+        
         $additional['x-powered-by'] = array(
-            'value' => $headers['x-powered-by'],
+            'value' => $powered_by_value,
             'warning' => true,
             'message' => 'Espone tecnologia utilizzata (consigliato rimuovere)'
         );
@@ -418,9 +428,12 @@ function checkAdditionalHeaders($headers) {
         $samesite_cookies = 0;
         
         foreach ($cookies as $cookie) {
-            if (stripos($cookie, 'secure') !== false) $secure_cookies++;
-            if (stripos($cookie, 'httponly') !== false) $httponly_cookies++;
-            if (stripos($cookie, 'samesite') !== false) $samesite_cookies++;
+            // Assicurati che $cookie sia una stringa
+            $cookie_str = is_array($cookie) ? implode('; ', $cookie) : $cookie;
+            
+            if (stripos($cookie_str, 'secure') !== false) $secure_cookies++;
+            if (stripos($cookie_str, 'httponly') !== false) $httponly_cookies++;
+            if (stripos($cookie_str, 'samesite') !== false) $samesite_cookies++;
         }
         
         $total_cookies = count($cookies);
@@ -431,6 +444,28 @@ function checkAdditionalHeaders($headers) {
             'samesite' => $samesite_cookies,
             'warning' => ($secure_cookies < $total_cookies || $httponly_cookies < $total_cookies),
             'message' => "Cookies totali: $total_cookies (Secure: $secure_cookies, HttpOnly: $httponly_cookies, SameSite: $samesite_cookies)"
+        );
+    }
+    
+    // Cache-Control
+    if (isset($headers['cache-control'])) {
+        $cache_value = is_array($headers['cache-control']) ? implode(', ', $headers['cache-control']) : $headers['cache-control'];
+        
+        $additional['cache-control'] = array(
+            'value' => $cache_value,
+            'warning' => false,
+            'message' => 'Cache control configurato'
+        );
+    }
+    
+    // Expires
+    if (isset($headers['expires'])) {
+        $expires_value = is_array($headers['expires']) ? $headers['expires'][0] : $headers['expires'];
+        
+        $additional['expires'] = array(
+            'value' => $expires_value,
+            'warning' => false,
+            'message' => 'Header expires presente'
         );
     }
     
@@ -489,5 +524,55 @@ function generateSecurityRecommendations($analysis) {
         );
     }
     
+    // X-Powered-By
+    if (isset($analysis['additional_headers']['x-powered-by'])) {
+        $recommendations[] = array(
+            'priority' => 'medium',
+            'title' => 'Rimuovi header X-Powered-By',
+            'description' => 'L\'header X-Powered-By espone la tecnologia utilizzata',
+            'solution' => 'Rimuovi questo header nella configurazione del server'
+        );
+    }
+    
+    // Cookie security
+    if (isset($analysis['additional_headers']['cookies']) && $analysis['additional_headers']['cookies']['warning']) {
+        $cookies_info = $analysis['additional_headers']['cookies'];
+        if ($cookies_info['secure'] < $cookies_info['total']) {
+            $recommendations[] = array(
+                'priority' => 'high',
+                'title' => 'Aggiungi flag Secure ai cookie',
+                'description' => 'Non tutti i cookie hanno il flag Secure',
+                'solution' => 'Imposta il flag Secure su tutti i cookie'
+            );
+        }
+        if ($cookies_info['httponly'] < $cookies_info['total']) {
+            $recommendations[] = array(
+                'priority' => 'medium',
+                'title' => 'Aggiungi flag HttpOnly ai cookie',
+                'description' => 'Non tutti i cookie hanno il flag HttpOnly',
+                'solution' => 'Imposta il flag HttpOnly sui cookie che non devono essere accessibili via JavaScript'
+            );
+        }
+        if ($cookies_info['samesite'] < $cookies_info['total']) {
+            $recommendations[] = array(
+                'priority' => 'medium',
+                'title' => 'Aggiungi attributo SameSite ai cookie',
+                'description' => 'Non tutti i cookie hanno l\'attributo SameSite',
+                'solution' => 'Imposta SameSite=Lax o SameSite=Strict sui cookie'
+            );
+        }
+    }
+    
     return $recommendations;
 }
+
+/**
+ * Alias per compatibilità
+ * 
+ * @param string $domain Dominio da analizzare
+ * @return array Risultati dell'analisi
+ */
+function checkSecurityHeaders($domain) {
+    return analyzeSecurityHeaders($domain);
+}
+?>
