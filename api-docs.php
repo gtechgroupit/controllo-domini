@@ -6,12 +6,25 @@
  * @version 4.0
  */
 
-require_once 'config/config.php';
+// Definisci ABSPATH se non esiste
+if (!defined('ABSPATH')) {
+    define('ABSPATH', dirname(__FILE__) . '/');
+}
+
+// Includi file di configurazione
+if (file_exists(ABSPATH . 'config/config.php')) {
+    require_once ABSPATH . 'config/config.php';
+}
+
+// Imposta pagina corrente per il menu
+$current_page = 'api-docs';
 
 // Meta tags specifici per questa pagina
-$page_title = "Documentazione API - REST API Reference | " . APP_NAME;
+$page_title = "Documentazione API - REST API Reference | " . (defined('APP_NAME') ? APP_NAME : 'Controllo Domini');
 $page_description = "Documentazione completa delle API di Controllo Domini. Endpoints, autenticazione, esempi di codice e rate limits per integrare i nostri servizi.";
-$canonical_url = APP_URL . "/api-docs";
+$canonical_url = (defined('APP_URL') ? APP_URL : 'https://controllodomini.it') . "/api-docs";
+
+// Resto del codice...
 
 // Includi header
 include 'templates/header.php';
