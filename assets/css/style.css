@@ -751,6 +751,118 @@ nav.scrolled {
     50% { transform: scale(1.02); }
 }
 
+.stats-showcase {
+    margin-top: 60px;
+    padding: 0 20px;
+}
+
+.stats-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 30px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.stat-item {
+    background: white;
+    border-radius: 20px;
+    padding: 40px 30px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stat-item:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
+}
+
+.stat-icon-wrapper {
+    position: relative;
+    display: inline-block;
+    margin-bottom: 20px;
+}
+
+.stat-icon {
+    font-size: 48px;
+    display: block;
+    position: relative;
+    z-index: 2;
+    animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+.stat-icon-bg {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    opacity: 0.1;
+    border-radius: 50%;
+    z-index: 1;
+}
+
+.stat-item:nth-child(1) .stat-icon-bg {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.stat-item:nth-child(2) .stat-icon-bg {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.stat-item:nth-child(3) .stat-icon-bg {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.stat-item:nth-child(4) .stat-icon-bg {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+}
+
+.stat-content h3 {
+    font-family: var(--font-primary);
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--secondary);
+    margin: 0 0 10px;
+    line-height: 1;
+}
+
+.stat-number {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.stat-suffix {
+    font-size: 1.5rem;
+    font-weight: 600;
+    opacity: 0.8;
+}
+
+.stat-label {
+    font-size: 1rem;
+    color: var(--gray-dark);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Animazione contatore */
+.stat-number[data-count] {
+    transition: all 2s ease-out;
+}
+
 /* ===================================
    8. BUTTONS
    =================================== */
@@ -1770,68 +1882,159 @@ nav.scrolled {
 }
 
 /* ===================================
-   11. TABLES
+   11. DNS RECORDS - Stile unificato
    =================================== */
 
-.table-wrapper {
-    overflow-x: auto;
-    border-radius: var(--radius-sm);
-    box-shadow: var(--shadow-md);
-    background: white;
-    border: 1px solid var(--gray-medium);
+
+.dns-records-container {
+    margin-top: 30px;
 }
 
+.dns-type-section {
+    margin-bottom: 40px;
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+}
+
+.dns-type-section:hover {
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+.dns-type-header {
+    background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
+    padding: 20px 30px;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.dns-type-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--secondary);
+}
+
+.dns-type-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 60px;
+    padding: 6px 16px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    color: white;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.05em;
+    margin-right: 15px;
+}
+
+.dns-type-description {
+    color: var(--gray-dark);
+    font-weight: 400;
+    font-size: 1rem;
+}
+
+.dns-type-count {
+    background: #e2e8f0;
+    color: var(--gray-dark);
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+/* Stili specifici per tipo di record */
+.dns-type-section[data-record-type="A"] .dns-type-badge,
+.dns-type-section[data-record-type="AAAA"] .dns-type-badge {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.dns-type-section[data-record-type="MX"] .dns-type-badge {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.dns-type-section[data-record-type="TXT"] .dns-type-badge {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.dns-type-section[data-record-type="NS"] .dns-type-badge {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+}
+
+.dns-type-section[data-record-type="CNAME"] .dns-type-badge {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+}
+
+/* Miglioramenti tabella DNS */
 .dns-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 15px;
+    margin: 0;
 }
 
 .dns-table th {
-    background: var(--gray-light);
-    color: var(--secondary);
-    padding: var(--space-md) var(--space-lg);
-    text-align: left;
-    font-family: var(--font-primary);
-    font-weight: 600;
-    font-size: 14px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    border-bottom: 2px solid var(--gray-medium);
-    position: sticky;
-    top: 0;
-    z-index: 10;
+    background: #f8f9fa;
+    font-size: 13px;
+    padding: 16px 20px;
 }
 
 .dns-table td {
-    padding: var(--space-md) var(--space-lg);
-    border-bottom: 1px solid var(--gray-medium);
-    vertical-align: top;
-}
-
-.dns-table tr:last-child td {
-    border-bottom: none;
-}
-
-.dns-table tr {
-    transition: var(--transition);
-}
-
-.dns-table tbody tr:hover {
-    background: var(--gray-light);
+    padding: 16px 20px;
+    font-size: 14px;
 }
 
 .dns-table code {
-    background: var(--gray-light);
-    padding: 2px 6px;
+    background: #f1f3f5;
+    padding: 4px 8px;
     border-radius: 4px;
-    font-size: 0.875em;
+    font-family: 'SF Mono', Monaco, monospace;
+    font-size: 13px;
+    color: var(--secondary);
 }
 
-.txt-value {
-    max-width: 400px;
-    word-break: break-all;
-    font-size: 0.85em;
+.dns-table .txt-value {
+    display: block;
+    max-width: 500px;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .stats-container {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+    }
+    
+    .stat-item {
+        padding: 30px 20px;
+    }
+    
+    .stat-content h3 {
+        font-size: 2rem;
+    }
+    
+    .dns-type-title {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    .dns-type-header {
+        padding: 15px 20px;
+    }
+    
+    .dns-table {
+        font-size: 12px;
+    }
+    
+    .dns-table th,
+    .dns-table td {
+        padding: 12px 15px;
+    }
 }
 
 /* ===================================
@@ -2686,6 +2889,21 @@ nav.scrolled {
     .lg\:d-flex { display: flex !important; }
     .lg\:grid-4 { grid-template-columns: repeat(4, 1fr); }
 }
+
+@media (max-width: 480px) {
+    .stats-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .dns-type-badge {
+        min-width: 50px;
+        font-size: 12px;
+        padding: 4px 12px;
+    }
+    
+    .dns-type-description {
+        font-size: 0.875rem;
+    }
 
 /* Mobile optimizations */
 @media (max-width: 768px) {
