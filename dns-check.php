@@ -28,11 +28,9 @@ if (file_exists(ABSPATH . 'includes/dns-functions.php')) {
 $current_page = 'dns-check';
 
 // Meta tags specifici per questa pagina
-$page_title = "Controllo DNS - Analisi Record DNS | " . (defined('APP_NAME') ? APP_NAME : 'Controllo Domini');
+$page_title = "Controllo DNS - Analisi Record DNS | " . APP_NAME;
 $page_description = "Verifica tutti i record DNS di un dominio: A, AAAA, MX, TXT, CNAME, NS, SOA, SRV, CAA. Strumento gratuito per analisi DNS completa.";
-$canonical_url = (defined('APP_URL') ? APP_URL : 'https://controllodomini.it') . "/dns-check";
-
-// Resto del codice...
+$canonical_url = APP_URL . "/dns-check";
 
 // Variabili per il form
 $domain = '';
@@ -75,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
 }
 
 // Includi header
-include 'templates/header.php';
+include ABSPATH . 'templates/header.php';
 ?>
 
 <!-- Hero Section -->
@@ -369,4 +367,4 @@ function showNotification(message, type) {
 }
 </script>
 
-<?php include 'templates/footer.php'; ?>
+<?php include ABSPATH . 'templates/footer.php'; ?>
