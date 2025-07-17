@@ -823,18 +823,3 @@ function generateRobotsSitemapRecommendations($results) {
     
     return $recommendations;
 }
-
-/**
- * Formatta dimensione in bytes
- * 
- * @param int $bytes Dimensione in bytes
- * @return string Dimensione formattata
- */
-function formatBytes($bytes) {
-    $units = array('B', 'KB', 'MB', 'GB');
-    $bytes = max($bytes, 0);
-    $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
-    $pow = min($pow, count($units) - 1);
-    
-    return round($bytes / pow(1024, $pow), 2) . ' ' . $units[$pow];
-}
