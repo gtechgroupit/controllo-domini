@@ -380,7 +380,7 @@ require_once ABSPATH . 'templates/header.php';
         <section class="dns-section" data-aos="fade-up">
             <div class="dns-header">
                 <span class="dns-icon">🔍</span>
-                <h2 class="dns-title">Record DNS</h2>
+                <h2 class="dns-title">Record DNS Completi</h2>
                 <div class="dns-actions">
                     <button class="btn btn-secondary" onclick="exportDNS()">
                         <span>📥</span> Esporta
@@ -391,40 +391,37 @@ require_once ABSPATH . 'templates/header.php';
                 </div>
             </div>
             
-            <div class="dns-tabs">
-                <div class="tabs-nav">
-                    <?php foreach ($dns_results as $type => $records): ?>
-                    <button class="tab-btn <?php echo $type == 'A' ? 'active' : ''; ?>" 
-                            data-tab="<?php echo $type; ?>">
-                        <?php echo $type; ?> 
-                        <span class="record-count"><?php echo count($records); ?></span>
-                    </button>
-                    <?php endforeach; ?>
-                </div>
-                
-                <div class="tabs-content">
-                    <?php foreach ($dns_results as $type => $records): ?>
-                    <div class="tab-pane <?php echo $type == 'A' ? 'active' : ''; ?>" 
-                         data-tab-content="<?php echo $type; ?>">
-                        <div class="table-wrapper">
-                            <table class="dns-table">
-                                <thead>
-                                    <tr>
-                                        <?php echo getDNSTableHeaders($type); ?>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($records as $record): ?>
-                                    <tr>
-                                        <?php echo formatDNSRecord($type, $record); ?>
-                                    </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
+            <div class="dns-records-container">
+                <?php foreach ($dns_results as $type => $records): ?>
+                <?php if (!empty($records)): ?>
+                <div class="dns-type-section" data-aos="fade-up" data-aos-delay="100">
+                    <div class="dns-type-header">
+                        <h3 class="dns-type-title">
+                            <span class="dns-type-badge"><?php echo $type; ?></span>
+                            <span class="dns-type-description"><?php echo getDnsTypeDescription($type); ?></span>
+                            <span class="dns-type-count"><?php echo count($records); ?> record<?php echo count($records) > 1 ? 's' : ''; ?></span>
+                        </h3>
                     </div>
-                    <?php endforeach; ?>
+                    
+                    <div class="table-wrapper">
+                        <table class="dns-table">
+                            <thead>
+                                <tr>
+                                    <?php echo getDNSTableHeaders($type); ?>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($records as $record): ?>
+                                <tr class="dns-row">
+                                    <?php echo formatDNSRecord($type, $record); ?>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
+                <?php endif; ?>
+                <?php endforeach; ?>
             </div>
         </section>
         <?php endif; ?>
@@ -648,6 +645,22 @@ function getDNSTableHeaders($type) {
     );
     
     return isset($headers[$type]) ? $headers[$type] : '<th>Type</th><th>Value</th><th>TTL</th>';
+}
+
+function getDnsTypeDescription($type) {
+    $descriptions = array(
+        'A' => 'Indirizzi IPv4',
+        'AAAA' => 'Indirizzi IPv6',
+        'MX' => 'Server di posta',
+        'TXT' => 'Record di testo',
+        'NS' => 'Name Server',
+        'CNAME' => 'Alias canonici',
+        'SOA' => 'Start of Authority',
+        'SRV' => 'Record di servizio',
+        'CAA' => 'Certificate Authority Authorization'
+    );
+    
+    return isset($descriptions[$type]) ? $descriptions[$type] : 'Record ' . $type;
 }
 
 function formatDNSRecord($type, $record) {
