@@ -161,7 +161,7 @@ function fetchUrlWithDetails($url, $options) {
         CURLOPT_TIMEOUT => $options['timeout'],
         CURLOPT_SSL_VERIFYPEER => false,
         CURLOPT_SSL_VERIFYHOST => false,
-        CURLOPT_USERAGENT => $options['user_agent'],
+        CURLOPT_USERAGENT => isset($options['user_agent']) ? $options['user_agent'] : 'Mozilla/5.0 (compatible; ControlloDomin/1.0)',
         CURLOPT_ENCODING => 'gzip, deflate'
     ));
     
