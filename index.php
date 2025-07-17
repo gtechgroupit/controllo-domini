@@ -109,7 +109,7 @@ if (($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) ||
                     $security_analysis = analyzeSecurityRecords($dns_results);
                     
                     // 8. Analizza certificato SSL
-                    $ssl_info = checkSSLCertificate($domain);
+                    $ssl_info = analyzeSSLCertificate($domain);
                     
                     // 9. Controlla security headers
                     $security_headers = checkSecurityHeaders($domain);
