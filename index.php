@@ -2335,12 +2335,3 @@ function formatBytes($bytes, $precision = 2) {
     
     return round($bytes, $precision) . ' ' . $units[$pow];
 }
-
-function getExpirationClass($days) {
-    if ($days === false) return '';
-    if ($days < 0) return 'text-danger';
-    if ($days < 30) return 'text-danger';
-    if ($days < 90) return 'text-warning';
-    return 'text-success';
-}
-?>
