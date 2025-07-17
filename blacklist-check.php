@@ -6,14 +6,33 @@
  * @version 4.0
  */
 
-require_once 'config/config.php';
-require_once 'includes/functions.php';
-require_once 'includes/blacklist-functions.php';
+// Definisci ABSPATH se non esiste
+if (!defined('ABSPATH')) {
+    define('ABSPATH', dirname(__FILE__) . '/');
+}
+
+// Includi file di configurazione e funzioni
+if (file_exists(ABSPATH . 'config/config.php')) {
+    require_once ABSPATH . 'config/config.php';
+}
+
+if (file_exists(ABSPATH . 'includes/functions.php')) {
+    require_once ABSPATH . 'includes/functions.php';
+}
+
+if (file_exists(ABSPATH . 'includes/blacklist-functions.php')) {
+    require_once ABSPATH . 'includes/blacklist-functions.php';
+}
+
+// Imposta pagina corrente per il menu
+$current_page = 'blacklist-check';
 
 // Meta tags specifici per questa pagina
-$page_title = "Controllo Blacklist - Verifica Reputazione | " . APP_NAME;
+$page_title = "Controllo Blacklist - Verifica Reputazione | " . (defined('APP_NAME') ? APP_NAME : 'Controllo Domini');
 $page_description = "Controlla se il tuo dominio o IP è in blacklist. Verifica gratuita su oltre 50 database di spam e blacklist per proteggere la tua reputazione online.";
-$canonical_url = APP_URL . "/blacklist-check";
+$canonical_url = (defined('APP_URL') ? APP_URL : 'https://controllodomini.it') . "/blacklist-check";
+
+// Resto del codice...
 
 // Variabili per il form
 $domain = '';
