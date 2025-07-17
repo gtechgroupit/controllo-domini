@@ -313,8 +313,8 @@ require_once ABSPATH . 'templates/header.php';
 {
     "@context": "https://schema.org",
     "@type": "WebPage",
-    "@id": "https://controllodomini.it/changelog",
-    "url": "https://controllodomini.it/changelog",
+    "@id": "https://controllodomini.it/changelog.php",
+    "url": "https://controllodomini.it/changelog.php",
     "name": "Changelog - Controllo Domini",
     "description": "<?php echo $page_description; ?>",
     "breadcrumb": {
@@ -330,7 +330,7 @@ require_once ABSPATH . 'templates/header.php';
                 "@type": "ListItem",
                 "position": 2,
                 "name": "Changelog",
-                "item": "https://controllodomini.it/changelog"
+                "item": "https://controllodomini.it/changelog.php"
             }
         ]
     }
