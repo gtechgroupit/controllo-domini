@@ -6,14 +6,33 @@
  * @version 4.0
  */
 
-require_once 'config/config.php';
-require_once 'includes/functions.php';
-require_once 'includes/whois-functions.php';
+// Definisci ABSPATH se non esiste
+if (!defined('ABSPATH')) {
+    define('ABSPATH', dirname(__FILE__) . '/');
+}
+
+// Includi file di configurazione e funzioni
+if (file_exists(ABSPATH . 'config/config.php')) {
+    require_once ABSPATH . 'config/config.php';
+}
+
+if (file_exists(ABSPATH . 'includes/functions.php')) {
+    require_once ABSPATH . 'includes/functions.php';
+}
+
+if (file_exists(ABSPATH . 'includes/whois-functions.php')) {
+    require_once ABSPATH . 'includes/whois-functions.php';
+}
+
+// Imposta pagina corrente per il menu
+$current_page = 'whois-lookup';
 
 // Meta tags specifici per questa pagina
-$page_title = "Verifica WHOIS - Informazioni Dominio | " . APP_NAME;
+$page_title = "Verifica WHOIS - Informazioni Dominio | " . (defined('APP_NAME') ? APP_NAME : 'Controllo Domini');
 $page_description = "Verifica WHOIS gratuita: scopri proprietario, data registrazione, scadenza e registrar di qualsiasi dominio. Informazioni complete sulla registrazione domini.";
-$canonical_url = APP_URL . "/whois-lookup";
+$canonical_url = (defined('APP_URL') ? APP_URL : 'https://controllodomini.it') . "/whois-lookup";
+
+// Resto del codice...
 
 // Variabili per il form
 $domain = '';
