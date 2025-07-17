@@ -185,6 +185,181 @@ require_once ABSPATH . 'templates/header.php';
     </div>
 </section>
 
+<!-- Features Section -->
+<section id="features" class="features-section">
+    <div class="container">
+        <div class="section-header" data-aos="fade-up">
+            <h2 class="section-title">Funzionalità Principali</h2>
+            <p class="section-subtitle">Tutto quello che ti serve per analizzare un dominio in profondità</p>
+        </div>
+        
+        <div class="features-grid">
+            <div class="feature-card" data-aos="fade-up" data-aos-delay="100">
+                <div class="feature-icon">🔍</div>
+                <h3>Analisi DNS Completa</h3>
+                <p>Recupera tutti i record DNS inclusi A, AAAA, MX, TXT, NS, CNAME, SOA, SRV e CAA con informazioni dettagliate.</p>
+            </div>
+            
+            <div class="feature-card" data-aos="fade-up" data-aos-delay="200">
+                <div class="feature-icon">👤</div>
+                <h3>Informazioni WHOIS</h3>
+                <p>Scopri il proprietario del dominio, data di registrazione, scadenza, registrar e stato del dominio.</p>
+            </div>
+            
+            <div class="feature-card" data-aos="fade-up" data-aos-delay="300">
+                <div class="feature-icon">☁️</div>
+                <h3>Rilevamento Cloud</h3>
+                <p>Identifica automaticamente i servizi cloud utilizzati come Microsoft 365, Google Workspace, Cloudflare e altri.</p>
+            </div>
+            
+            <div class="feature-card" data-aos="fade-up" data-aos-delay="400">
+                <div class="feature-icon">🚫</div>
+                <h3>Controllo Blacklist</h3>
+                <p>Verifica se il dominio o i suoi IP sono presenti in blacklist spam con controllo su oltre 50 database.</p>
+            </div>
+            
+            <div class="feature-card" data-aos="fade-up" data-aos-delay="500">
+                <div class="feature-icon">📧</div>
+                <h3>Analisi Email</h3>
+                <p>Controlla la configurazione email con verifica SPF, DKIM, DMARC e identificazione del provider email.</p>
+            </div>
+            
+            <div class="feature-card" data-aos="fade-up" data-aos-delay="600">
+                <div class="feature-icon">🔒</div>
+                <h3>Sicurezza DNS</h3>
+                <p>Analizza la sicurezza con controllo DNSSEC, CAA records e DANE/TLSA per una protezione ottimale.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- How It Works Section -->
+<section id="how-it-works" class="how-it-works-section">
+    <div class="container">
+        <div class="section-header" data-aos="fade-up">
+            <h2 class="section-title">Come Funziona</h2>
+            <p class="section-subtitle">Un processo semplice e veloce in 3 passaggi</p>
+        </div>
+        
+        <div class="steps-container">
+            <div class="step-card" data-aos="fade-right" data-aos-delay="100">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <h3>Inserisci il Dominio</h3>
+                    <p>Digita il nome del dominio che vuoi analizzare nel campo di ricerca. Supportiamo tutti i TLD e sottodomini.</p>
+                </div>
+            </div>
+            
+            <div class="step-connector" data-aos="fade-up" data-aos-delay="200">
+                <div class="connector-line"></div>
+            </div>
+            
+            <div class="step-card" data-aos="fade-up" data-aos-delay="300">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <h3>Analisi Automatica</h3>
+                    <p>Il sistema esegue automaticamente tutti i controlli: DNS, WHOIS, blacklist, configurazione email e sicurezza.</p>
+                </div>
+            </div>
+            
+            <div class="step-connector" data-aos="fade-up" data-aos-delay="400">
+                <div class="connector-line"></div>
+            </div>
+            
+            <div class="step-card" data-aos="fade-left" data-aos-delay="500">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <h3>Report Completo</h3>
+                    <p>Ricevi un report dettagliato con tutte le informazioni, raccomandazioni e un punteggio di salute del dominio.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- FAQ Section -->
+<section id="faq" class="faq-section">
+    <div class="container">
+        <div class="section-header" data-aos="fade-up">
+            <h2 class="section-title">Domande Frequenti</h2>
+            <p class="section-subtitle">Risposte alle domande più comuni sul nostro servizio</p>
+        </div>
+        
+        <div class="faq-container">
+            <div class="faq-item" data-aos="fade-up" data-aos-delay="100">
+                <button class="faq-question" onclick="toggleFaq(this)">
+                    <span>Cos'è l'analisi DNS e perché è importante?</span>
+                    <span class="faq-icon">+</span>
+                </button>
+                <div class="faq-answer">
+                    <p>L'analisi DNS (Domain Name System) permette di verificare tutti i record associati a un dominio. È importante perché ti consente di controllare la configurazione del tuo sito web, email, sicurezza e identificare eventuali problemi di configurazione che potrebbero impattare la raggiungibilità o la sicurezza del tuo dominio.</p>
+                </div>
+            </div>
+            
+            <div class="faq-item" data-aos="fade-up" data-aos-delay="200">
+                <button class="faq-question" onclick="toggleFaq(this)">
+                    <span>Il servizio è gratuito?</span>
+                    <span class="faq-icon">+</span>
+                </button>
+                <div class="faq-answer">
+                    <p>Sì, il servizio di analisi base è completamente gratuito. Puoi analizzare qualsiasi dominio senza registrazione o costi nascosti. Per utenti con esigenze avanzate, offriamo API professionali con limiti di utilizzo più elevati.</p>
+                </div>
+            </div>
+            
+            <div class="faq-item" data-aos="fade-up" data-aos-delay="300">
+                <button class="faq-question" onclick="toggleFaq(this)">
+                    <span>Quali informazioni posso ottenere dal WHOIS?</span>
+                    <span class="faq-icon">+</span>
+                </button>
+                <div class="faq-answer">
+                    <p>Il WHOIS fornisce informazioni sul proprietario del dominio (se non protette da privacy), date di registrazione e scadenza, registrar utilizzato, nameserver configurati e stato del dominio. Queste informazioni sono utili per verificare la proprietà e monitorare le scadenze.</p>
+                </div>
+            </div>
+            
+            <div class="faq-item" data-aos="fade-up" data-aos-delay="400">
+                <button class="faq-question" onclick="toggleFaq(this)">
+                    <span>Come funziona il controllo blacklist?</span>
+                    <span class="faq-icon">+</span>
+                </button>
+                <div class="faq-answer">
+                    <p>Il controllo blacklist verifica se gli IP associati al dominio sono presenti in liste di spam o blacklist pubbliche. Controlliamo oltre 50 database diversi per assicurarci che il tuo dominio non sia stato segnalato, cosa che potrebbe impattare la deliverability delle email o la reputazione online.</p>
+                </div>
+            </div>
+            
+            <div class="faq-item" data-aos="fade-up" data-aos-delay="500">
+                <button class="faq-question" onclick="toggleFaq(this)">
+                    <span>Posso esportare i risultati dell'analisi?</span>
+                    <span class="faq-icon">+</span>
+                </button>
+                <div class="faq-answer">
+                    <p>Sì, puoi esportare tutti i dati DNS in formato JSON o copiarli negli appunti per utilizzarli in altri strumenti. I risultati completi possono essere salvati per riferimento futuro o condivisi con il tuo team tecnico.</p>
+                </div>
+            </div>
+            
+            <div class="faq-item" data-aos="fade-up" data-aos-delay="600">
+                <button class="faq-question" onclick="toggleFaq(this)">
+                    <span>Quanto spesso dovrei controllare il mio dominio?</span>
+                    <span class="faq-icon">+</span>
+                </button>
+                <div class="faq-answer">
+                    <p>Consigliamo di controllare il tuo dominio almeno una volta al mese per monitorare eventuali cambiamenti non autorizzati, verificare le scadenze e assicurarsi che non ci siano problemi di blacklist. Per domini critici, un controllo settimanale può essere più appropriato.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA Section -->
+<section class="cta-section">
+    <div class="container">
+        <div class="cta-content" data-aos="zoom-in">
+            <h2>Pronto per analizzare il tuo dominio?</h2>
+            <p>Inizia subito con un'analisi completa e gratuita</p>
+            <a href="#domain-check" class="btn btn-cta">Analizza Ora</a>
+        </div>
+    </div>
+</section>
+
 <?php if ($analysis_completed && $dns_results): ?>
 <!-- Results Section -->
 <section id="results" class="results-section">
@@ -631,6 +806,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('domainForm');
     const analyzeBtn = document.getElementById('analyzeBtn');
     
+    // Form submission
     form.addEventListener('submit', function(e) {
         // Mostra indicatore di caricamento
         analyzeBtn.disabled = true;
@@ -644,8 +820,279 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }, 30000); // 30 secondi di timeout
     });
+    
+    // FAQ toggle
+    window.toggleFaq = function(button) {
+        const faqItem = button.parentElement;
+        const answer = faqItem.querySelector('.faq-answer');
+        const icon = button.querySelector('.faq-icon');
+        
+        if (faqItem.classList.contains('active')) {
+            faqItem.classList.remove('active');
+            answer.style.maxHeight = null;
+            icon.textContent = '+';
+        } else {
+            // Close other FAQs
+            document.querySelectorAll('.faq-item.active').forEach(item => {
+                item.classList.remove('active');
+                item.querySelector('.faq-answer').style.maxHeight = null;
+                item.querySelector('.faq-icon').textContent = '+';
+            });
+            
+            faqItem.classList.add('active');
+            answer.style.maxHeight = answer.scrollHeight + 'px';
+            icon.textContent = '−';
+        }
+    };
+    
+    // Smooth scroll for anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+        });
+    });
 });
 </script>
+
+<style>
+/* Additional styles for new sections */
+.features-section,
+.how-it-works-section,
+.faq-section,
+.cta-section {
+    padding: 80px 0;
+}
+
+.features-section {
+    background: var(--gray-50);
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 30px;
+    margin-top: 50px;
+}
+
+.feature-card {
+    background: white;
+    padding: 40px;
+    border-radius: 16px;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-lg);
+}
+
+.feature-icon {
+    font-size: 48px;
+    margin-bottom: 20px;
+}
+
+.feature-card h3 {
+    font-size: 1.5rem;
+    margin-bottom: 15px;
+    color: var(--secondary);
+}
+
+.feature-card p {
+    color: var(--gray-600);
+    line-height: 1.6;
+}
+
+/* How it works */
+.steps-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 60px;
+    max-width: 1000px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.step-card {
+    flex: 1;
+    text-align: center;
+    position: relative;
+}
+
+.step-number {
+    width: 80px;
+    height: 80px;
+    background: var(--primary-gradient);
+    color: white;
+    font-size: 2rem;
+    font-weight: 700;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 30px;
+    box-shadow: var(--shadow-md);
+}
+
+.step-content h3 {
+    font-size: 1.5rem;
+    margin-bottom: 15px;
+    color: var(--secondary);
+}
+
+.step-content p {
+    color: var(--gray-600);
+    max-width: 250px;
+    margin: 0 auto;
+}
+
+.step-connector {
+    flex: 0 0 100px;
+    position: relative;
+}
+
+.connector-line {
+    position: absolute;
+    top: 40px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--primary);
+    background-image: repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 10px,
+        var(--primary) 10px,
+        var(--primary) 20px
+    );
+}
+
+/* FAQ */
+.faq-container {
+    max-width: 800px;
+    margin: 50px auto 0;
+}
+
+.faq-item {
+    background: white;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.faq-item.active {
+    box-shadow: var(--shadow-md);
+}
+
+.faq-question {
+    width: 100%;
+    padding: 25px 30px;
+    background: transparent;
+    border: none;
+    text-align: left;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--secondary);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.3s ease;
+}
+
+.faq-question:hover {
+    background: var(--gray-50);
+}
+
+.faq-icon {
+    font-size: 1.5rem;
+    transition: transform 0.3s ease;
+}
+
+.faq-item.active .faq-icon {
+    transform: rotate(45deg);
+}
+
+.faq-answer {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.faq-answer p {
+    padding: 0 30px 25px;
+    color: var(--gray-600);
+    line-height: 1.6;
+}
+
+/* CTA Section */
+.cta-section {
+    background: var(--primary-gradient);
+    color: white;
+    text-align: center;
+}
+
+.cta-content h2 {
+    font-size: 2.5rem;
+    margin-bottom: 15px;
+}
+
+.cta-content p {
+    font-size: 1.2rem;
+    margin-bottom: 30px;
+    opacity: 0.9;
+}
+
+.btn-cta {
+    background: white;
+    color: var(--primary);
+    padding: 15px 40px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    display: inline-block;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    box-shadow: var(--shadow-md);
+}
+
+.btn-cta:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .features-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .steps-container {
+        flex-direction: column;
+        gap: 40px;
+    }
+    
+    .step-connector {
+        display: none;
+    }
+    
+    .step-card {
+        max-width: 300px;
+    }
+}
+</style>
 
 <?php
 // Include footer
