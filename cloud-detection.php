@@ -6,15 +6,37 @@
  * @version 4.0
  */
 
-require_once 'config/config.php';
-require_once 'includes/functions.php';
-require_once 'includes/dns-functions.php';
-require_once 'includes/cloud-functions.php';
+// Definisci ABSPATH se non esiste
+if (!defined('ABSPATH')) {
+    define('ABSPATH', dirname(__FILE__) . '/');
+}
+
+// Includi file di configurazione e funzioni
+if (file_exists(ABSPATH . 'config/config.php')) {
+    require_once ABSPATH . 'config/config.php';
+}
+
+if (file_exists(ABSPATH . 'includes/functions.php')) {
+    require_once ABSPATH . 'includes/functions.php';
+}
+
+if (file_exists(ABSPATH . 'includes/dns-functions.php')) {
+    require_once ABSPATH . 'includes/dns-functions.php';
+}
+
+if (file_exists(ABSPATH . 'includes/cloud-functions.php')) {
+    require_once ABSPATH . 'includes/cloud-functions.php';
+}
+
+// Imposta pagina corrente per il menu
+$current_page = 'cloud-detection';
 
 // Meta tags specifici per questa pagina
-$page_title = "Rilevamento Servizi Cloud - Identifica Provider | " . APP_NAME;
+$page_title = "Rilevamento Servizi Cloud - Identifica Provider | " . (defined('APP_NAME') ? APP_NAME : 'Controllo Domini');
 $page_description = "Identifica quali servizi cloud utilizza un dominio: Microsoft 365, Google Workspace, AWS, Cloudflare e oltre 50 altri provider cloud e CDN.";
-$canonical_url = APP_URL . "/cloud-detection";
+$canonical_url = (defined('APP_URL') ? APP_URL : 'https://controllodomini.it') . "/cloud-detection";
+
+// Resto del codice...
 
 // Variabili per il form
 $domain = '';
