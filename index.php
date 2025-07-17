@@ -128,7 +128,7 @@ if (($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) ||
                     $sitemap_analysis = analyzeSitemap($domain);
                     
                     // 14. Analizza redirect
-                    $redirect_analysis = analyzeRedirects($domain);
+                    $redirect_analysis = analyzeRedirectChain('https://' . $domain);
                     
                     // 15. Scansione porte (se richiesta)
                     if ($scan_ports) {
