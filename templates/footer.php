@@ -224,6 +224,77 @@ $assets_version = defined('APP_VERSION') ? APP_VERSION : '4.0';
     </script>
     <?php endif; ?>
     
+    <!-- Animazioni Statistiche Homepage -->
+    <script>
+        // Animazione contatore numeri
+        function animateCounter(element, target) {
+            const duration = 2000; // 2 secondi
+            const start = 0;
+            const increment = target / (duration / 16);
+            let current = start;
+            
+            const timer = setInterval(() => {
+                current += increment;
+                if (current >= target) {
+                    current = target;
+                    clearInterval(timer);
+                }
+                element.textContent = Math.floor(current).toLocaleString('it-IT');
+            }, 16);
+        }
+
+        // Osservatore per attivare l'animazione quando visibile
+        const observerOptions = {
+            threshold: 0.5,
+            rootMargin: '0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting && !entry.target.classList.contains('animated')) {
+                    entry.target.classList.add('animated');
+                    const target = parseInt(entry.target.getAttribute('data-count'));
+                    if (target) {
+                        animateCounter(entry.target, target);
+                    }
+                }
+            });
+        }, observerOptions);
+
+        // Osserva tutti gli elementi con data-count
+        document.addEventListener('DOMContentLoaded', () => {
+            const counters = document.querySelectorAll('[data-count]');
+            counters.forEach(counter => observer.observe(counter));
+            
+            // Gestione click esempi domini
+            const exampleLinks = document.querySelectorAll('.example-link');
+            const domainInput = document.getElementById('domain');
+            
+            exampleLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const domain = link.getAttribute('data-domain');
+                    if (domainInput && domain) {
+                        domainInput.value = domain;
+                        domainInput.focus();
+                        // Trigger form submission se desiderato
+                        // document.getElementById('domainForm').submit();
+                    }
+                });
+            });
+            
+            // Inizializza AOS
+            if (typeof AOS !== 'undefined') {
+                AOS.init({
+                    duration: 800,
+                    easing: 'ease-out',
+                    once: true,
+                    offset: 100
+                });
+            }
+        });
+    </script>
+    
     <!-- Newsletter Form Handler -->
     <script>
         document.getElementById('newsletterForm')?.addEventListener('submit', async function(e) {
