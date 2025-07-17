@@ -1,11 +1,11 @@
 <?php
 /**
  * Controllo Domini - Pagina Principale
- * Sistema professionale per l'analisi DNS e WHOIS
+ * Sistema professionale per l'analisi DNS, WHOIS e sicurezza domini
  * 
  * @package ControlDomini
  * @author G Tech Group
- * @version 4.0
+ * @version 4.1
  * @website https://controllodomini.it
  */
 
@@ -17,12 +17,20 @@ if (!defined('ABSPATH')) {
 // Carica configurazione
 require_once ABSPATH . 'config/config.php';
 
-// Carica funzioni
+// Carica tutte le funzioni necessarie
 require_once ABSPATH . 'includes/utilities.php';
 require_once ABSPATH . 'includes/dns-functions.php';
 require_once ABSPATH . 'includes/whois-functions.php';
 require_once ABSPATH . 'includes/cloud-detection.php';
 require_once ABSPATH . 'includes/blacklist-functions.php';
+require_once ABSPATH . 'includes/ssl-certificate.php';
+require_once ABSPATH . 'includes/security-headers.php';
+require_once ABSPATH . 'includes/technology-detection.php';
+require_once ABSPATH . 'includes/social-meta-analysis.php';
+require_once ABSPATH . 'includes/performance-analysis.php';
+require_once ABSPATH . 'includes/robots-sitemap.php';
+require_once ABSPATH . 'includes/redirect-analysis.php';
+require_once ABSPATH . 'includes/port-scanner.php';
 
 // Variabili per la gestione del form
 $domain = '';
@@ -31,14 +39,27 @@ $whois_info = null;
 $cloud_services = null;
 $blacklist_results = null;
 $domain_health = null;
+$ssl_info = null;
+$security_headers = null;
+$technologies = null;
+$social_meta = null;
+$performance_data = null;
+$robots_analysis = null;
+$sitemap_analysis = null;
+$redirect_analysis = null;
+$port_scan_results = null;
 $error_message = '';
 $success_message = '';
 $response_time = 0;
 $analysis_completed = false;
+$analysis_duration = 0;
 
-// Gestione del form POST
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
-    $domain = trim($_POST['domain']);
+// Gestione del form POST e parametri GET per deep linking
+if (($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) || 
+    (isset($_GET['domain']) && isset($_GET['analyze']))) {
+    
+    $domain = trim($_SERVER['REQUEST_METHOD'] === 'POST' ? $_POST['domain'] : $_GET['domain']);
+    $scan_ports = isset($_POST['scan_ports']) || isset($_GET['scan_ports']);
     
     // Validazione dominio
     $validated_domain = validateDomain($domain);
@@ -87,27 +108,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) {
                     // 7. Analizza sicurezza DNS
                     $security_analysis = analyzeSecurityRecords($dns_results);
                     
-                    // 8. Calcola health score complessivo
+                    // 8. Analizza certificato SSL
+                    $ssl_info = checkSSLCertificate($domain);
+                    
+                    // 9. Controlla security headers
+                    $security_headers = checkSecurityHeaders($domain);
+                    
+                    // 10. Rileva tecnologie
+                    $technologies = detectTechnologies($domain);
+                    
+                    // 11. Analizza meta tag social
+                    $social_meta = analyzeSocialMeta($domain);
+                    
+                    // 12. Analisi performance
+                    $performance_data = analyzePerformance($domain);
+                    
+                    // 13. Controlla robots.txt e sitemap
+                    $robots_analysis = analyzeRobotsTxt($domain);
+                    $sitemap_analysis = analyzeSitemap($domain);
+                    
+                    // 14. Analizza redirect
+                    $redirect_analysis = analyzeRedirects($domain);
+                    
+                    // 15. Scansione porte (se richiesta)
+                    if ($scan_ports) {
+                        $port_scan_results = scanPorts($domain);
+                    }
+                    
+                    // 16. Calcola health score complessivo
                     $domain_health = calculateDomainHealth(array(
                         'dns' => $dns_results,
                         'whois' => $whois_info,
                         'blacklist' => $blacklist_results,
                         'email' => $email_config,
                         'security' => $security_analysis,
+                        'ssl' => $ssl_info,
+                        'headers' => $security_headers,
+                        'performance' => $performance_data,
                         'response_time' => $response_time
                     ));
                     
-                    // 9. Log analisi per statistiche
+                    // Calcola durata analisi
+                    $analysis_duration = round((microtime(true) - $analysis_start), 2);
+                    
+                    // 17. Log analisi per statistiche
                     logAnalysis($domain, array(
                         'dns_count' => count($dns_results),
                         'has_mx' => !empty($dns_results['MX']),
                         'has_spf' => isset($email_config['has_spf']) ? $email_config['has_spf'] : false,
+                        'has_ssl' => isset($ssl_info['valid']) ? $ssl_info['valid'] : false,
                         'cloud_services' => array_keys($cloud_services['detected']),
-                        'blacklisted' => isset($blacklist_results['statistics']['total_listings']) ? $blacklist_results['statistics']['total_listings'] > 0 : false
+                        'blacklisted' => isset($blacklist_results['statistics']['total_listings']) ? $blacklist_results['statistics']['total_listings'] > 0 : false,
+                        'technologies' => isset($technologies['detected']) ? count($technologies['detected']) : 0,
+                        'health_score' => $domain_health['score'],
+                        'analysis_duration' => $analysis_duration
                     ));
                     
                     $analysis_completed = true;
-                    $success_message = 'Analisi completata con successo!';
+                    $success_message = 'Analisi completata con successo in ' . $analysis_duration . ' secondi!';
                 }
                 
             } catch (Exception $e) {
@@ -157,6 +215,14 @@ require_once ABSPATH . 'templates/header.php';
                             <span class="btn-icon">→</span>
                         </button>
                     </div>
+                    
+                    <!-- Opzioni avanzate -->
+                    <div class="advanced-options">
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="scan_ports" value="1" <?php echo isset($_POST['scan_ports']) ? 'checked' : ''; ?>>
+                            <span>Includi scansione porte (richiede più tempo)</span>
+                        </label>
+                    </div>
                 </div>
                 
                 <?php if ($error_message): ?>
@@ -180,6 +246,7 @@ require_once ABSPATH . 'templates/header.php';
                 <button type="button" class="example-link" data-domain="google.com">google.com</button>
                 <button type="button" class="example-link" data-domain="microsoft.com">microsoft.com</button>
                 <button type="button" class="example-link" data-domain="amazon.com">amazon.com</button>
+                <button type="button" class="example-link" data-domain="gtechgroup.it">gtechgroup.it</button>
             </div>
         </div>
     </div>
@@ -189,8 +256,8 @@ require_once ABSPATH . 'templates/header.php';
 <section id="features" class="features-section">
     <div class="container">
         <div class="section-header" data-aos="fade-up">
-            <h2 class="section-title">Funzionalità Principali</h2>
-            <p class="section-subtitle">Tutto quello che ti serve per analizzare un dominio in profondità</p>
+            <h2 class="section-title">Funzionalità Complete</h2>
+            <p class="section-subtitle">Analisi professionale con oltre 30 controlli automatici</p>
         </div>
         
         <div class="features-grid">
@@ -226,8 +293,26 @@ require_once ABSPATH . 'templates/header.php';
             
             <div class="feature-card" data-aos="fade-up" data-aos-delay="600">
                 <div class="feature-icon">🔒</div>
-                <h3>Sicurezza DNS</h3>
-                <p>Analizza la sicurezza con controllo DNSSEC, CAA records e DANE/TLSA per una protezione ottimale.</p>
+                <h3>SSL & Sicurezza</h3>
+                <p>Analizza certificato SSL, security headers, DNSSEC, CAA records e DANE/TLSA per una protezione ottimale.</p>
+            </div>
+            
+            <div class="feature-card" data-aos="fade-up" data-aos-delay="700">
+                <div class="feature-icon">🔧</div>
+                <h3>Tecnologie & CMS</h3>
+                <p>Rileva automaticamente CMS, framework, linguaggi di programmazione e tecnologie utilizzate.</p>
+            </div>
+            
+            <div class="feature-card" data-aos="fade-up" data-aos-delay="800">
+                <div class="feature-icon">⚡</div>
+                <h3>Performance & SEO</h3>
+                <p>Analisi performance, controllo robots.txt, sitemap, meta tag social e ottimizzazioni SEO.</p>
+            </div>
+            
+            <div class="feature-card" data-aos="fade-up" data-aos-delay="900">
+                <div class="feature-icon">🔄</div>
+                <h3>Redirect & Porte</h3>
+                <p>Traccia catene di redirect, analizza HTTP headers e scansione porte opzionale.</p>
             </div>
         </div>
     </div>
@@ -258,7 +343,7 @@ require_once ABSPATH . 'templates/header.php';
                 <div class="step-number">2</div>
                 <div class="step-content">
                     <h3>Analisi Automatica</h3>
-                    <p>Il sistema esegue automaticamente tutti i controlli: DNS, WHOIS, blacklist, configurazione email e sicurezza.</p>
+                    <p>Il sistema esegue automaticamente tutti i controlli: DNS, WHOIS, blacklist, SSL, performance e sicurezza.</p>
                 </div>
             </div>
             
@@ -345,6 +430,26 @@ require_once ABSPATH . 'templates/header.php';
                     <p>Consigliamo di controllare il tuo dominio almeno una volta al mese per monitorare eventuali cambiamenti non autorizzati, verificare le scadenze e assicurarsi che non ci siano problemi di blacklist. Per domini critici, un controllo settimanale può essere più appropriato.</p>
                 </div>
             </div>
+            
+            <div class="faq-item" data-aos="fade-up" data-aos-delay="700">
+                <button class="faq-question" onclick="toggleFaq(this)">
+                    <span>Quali tecnologie riuscite a rilevare?</span>
+                    <span class="faq-icon">+</span>
+                </button>
+                <div class="faq-answer">
+                    <p>Il nostro sistema rileva CMS (WordPress, Joomla, Drupal, etc.), e-commerce (WooCommerce, Magento, Shopify), framework (Laravel, React, Angular), server web (Apache, Nginx, IIS), linguaggi di programmazione, CDN, analytics e molte altre tecnologie.</p>
+                </div>
+            </div>
+            
+            <div class="faq-item" data-aos="fade-up" data-aos-delay="800">
+                <button class="faq-question" onclick="toggleFaq(this)">
+                    <span>Come posso migliorare il punteggio di salute del mio dominio?</span>
+                    <span class="faq-icon">+</span>
+                </button>
+                <div class="faq-answer">
+                    <p>Per migliorare il punteggio: configura correttamente SPF, DKIM e DMARC per le email, attiva DNSSEC, usa un certificato SSL valido, implementa security headers, mantieni il dominio fuori dalle blacklist, rinnova il dominio con anticipo e ottimizza le performance DNS.</p>
+                </div>
+            </div>
         </div>
     </div>
 </section>
@@ -423,11 +528,25 @@ require_once ABSPATH . 'templates/header.php';
                 <div class="stat-label">Giorni alla scadenza</div>
             </div>
             <?php endif; ?>
+            <?php if ($ssl_info && isset($ssl_info['valid'])): ?>
+            <div class="stat-card">
+                <div class="stat-icon">🔒</div>
+                <div class="stat-value <?php echo $ssl_info['valid'] ? 'text-success' : 'text-danger'; ?>"><?php echo $ssl_info['valid'] ? 'Valido' : 'Non Valido'; ?></div>
+                <div class="stat-label">SSL</div>
+            </div>
+            <?php endif; ?>
             <?php if ($blacklist_results && isset($blacklist_results['reputation'])): ?>
             <div class="stat-card">
                 <div class="stat-icon">🛡️</div>
                 <div class="stat-value" data-value="<?php echo $blacklist_results['reputation']['score']; ?>"><?php echo $blacklist_results['reputation']['score']; ?><span style="font-size: 0.5em; font-weight: 400;">%</span></div>
                 <div class="stat-label">Reputazione</div>
+            </div>
+            <?php endif; ?>
+            <?php if ($technologies && isset($technologies['detected'])): ?>
+            <div class="stat-card">
+                <div class="stat-icon">🔧</div>
+                <div class="stat-value"><?php echo count($technologies['detected']); ?></div>
+                <div class="stat-label">Tecnologie</div>
             </div>
             <?php endif; ?>
         </div>
@@ -509,6 +628,136 @@ require_once ABSPATH . 'templates/header.php';
                     <div class="whois-value"><span class="badge badge-success">Attivo</span></div>
                 </div>
                 <?php endif; ?>
+            </div>
+        </section>
+        <?php endif; ?>
+        
+        <!-- SSL Certificate Information -->
+        <?php if ($ssl_info && isset($ssl_info['valid'])): ?>
+        <section class="ssl-section" data-aos="fade-up">
+            <div class="ssl-header">
+                <span class="ssl-icon">🔒</span>
+                <h2 class="ssl-title">Certificato SSL/TLS</h2>
+            </div>
+            
+            <div class="ssl-content">
+                <div class="ssl-status <?php echo $ssl_info['valid'] ? 'ssl-valid' : 'ssl-invalid'; ?>">
+                    <div class="ssl-status-icon"><?php echo $ssl_info['valid'] ? '✅' : '❌'; ?></div>
+                    <div class="ssl-status-text">
+                        <h3><?php echo $ssl_info['valid'] ? 'Certificato Valido' : 'Certificato Non Valido'; ?></h3>
+                        <?php if (isset($ssl_info['error'])): ?>
+                            <p><?php echo htmlspecialchars($ssl_info['error']); ?></p>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                
+                <?php if ($ssl_info['valid'] && isset($ssl_info['details'])): ?>
+                <div class="ssl-details">
+                    <div class="ssl-detail-item">
+                        <span class="detail-label">Emesso per:</span>
+                        <span class="detail-value"><?php echo htmlspecialchars($ssl_info['details']['subject']); ?></span>
+                    </div>
+                    <div class="ssl-detail-item">
+                        <span class="detail-label">Emesso da:</span>
+                        <span class="detail-value"><?php echo htmlspecialchars($ssl_info['details']['issuer']); ?></span>
+                    </div>
+                    <div class="ssl-detail-item">
+                        <span class="detail-label">Valido dal:</span>
+                        <span class="detail-value"><?php echo htmlspecialchars($ssl_info['details']['valid_from']); ?></span>
+                    </div>
+                    <div class="ssl-detail-item">
+                        <span class="detail-label">Valido fino al:</span>
+                        <span class="detail-value <?php echo $ssl_info['days_until_expiry'] < 30 ? 'text-warning' : ''; ?>">
+                            <?php echo htmlspecialchars($ssl_info['details']['valid_to']); ?>
+                            <?php if ($ssl_info['days_until_expiry'] >= 0): ?>
+                                <small>(<?php echo $ssl_info['days_until_expiry']; ?> giorni)</small>
+                            <?php endif; ?>
+                        </span>
+                    </div>
+                    <?php if (!empty($ssl_info['details']['san'])): ?>
+                    <div class="ssl-detail-item">
+                        <span class="detail-label">Domini alternativi:</span>
+                        <span class="detail-value"><?php echo htmlspecialchars(implode(', ', $ssl_info['details']['san'])); ?></span>
+                    </div>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
+            </div>
+        </section>
+        <?php endif; ?>
+        
+        <!-- Security Headers -->
+        <?php if ($security_headers && isset($security_headers['headers'])): ?>
+        <section class="security-headers-section" data-aos="fade-up">
+            <div class="security-headers-header">
+                <span class="security-icon">🛡️</span>
+                <h2 class="security-title">Security Headers</h2>
+                <div class="security-score">
+                    Score: <span class="score-badge <?php echo getScoreClass($security_headers['score']); ?>">
+                        <?php echo $security_headers['score']; ?>/100
+                    </span>
+                </div>
+            </div>
+            
+            <div class="headers-grid">
+                <?php foreach ($security_headers['headers'] as $header => $info): ?>
+                <div class="header-item <?php echo $info['present'] ? 'header-present' : 'header-missing'; ?>">
+                    <div class="header-status">
+                        <?php echo $info['present'] ? '✅' : '❌'; ?>
+                    </div>
+                    <div class="header-info">
+                        <h4><?php echo htmlspecialchars($header); ?></h4>
+                        <p><?php echo htmlspecialchars($info['description']); ?></p>
+                        <?php if ($info['present'] && isset($info['value'])): ?>
+                            <code><?php echo htmlspecialchars($info['value']); ?></code>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+            
+            <?php if (!empty($security_headers['recommendations'])): ?>
+            <div class="security-recommendations">
+                <h3>Raccomandazioni</h3>
+                <ul>
+                    <?php foreach ($security_headers['recommendations'] as $rec): ?>
+                    <li><?php echo htmlspecialchars($rec); ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+            <?php endif; ?>
+        </section>
+        <?php endif; ?>
+        
+        <!-- Technologies Detection -->
+        <?php if ($technologies && !empty($technologies['detected'])): ?>
+        <section class="technologies-section" data-aos="fade-up">
+            <div class="technologies-header">
+                <span class="tech-icon">🔧</span>
+                <h2 class="tech-title">Tecnologie Rilevate</h2>
+            </div>
+            
+            <div class="technologies-grid">
+                <?php foreach ($technologies['categories'] as $category => $techs): ?>
+                <?php if (!empty($techs)): ?>
+                <div class="tech-category">
+                    <h3><?php echo htmlspecialchars($category); ?></h3>
+                    <div class="tech-items">
+                        <?php foreach ($techs as $tech): ?>
+                        <div class="tech-item">
+                            <?php if (isset($tech['icon'])): ?>
+                            <img src="<?php echo htmlspecialchars($tech['icon']); ?>" alt="<?php echo htmlspecialchars($tech['name']); ?>" class="tech-icon">
+                            <?php endif; ?>
+                            <span class="tech-name"><?php echo htmlspecialchars($tech['name']); ?></span>
+                            <?php if (isset($tech['version'])): ?>
+                            <span class="tech-version"><?php echo htmlspecialchars($tech['version']); ?></span>
+                            <?php endif; ?>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
+                <?php endforeach; ?>
             </div>
         </section>
         <?php endif; ?>
@@ -754,7 +1003,7 @@ require_once ABSPATH . 'templates/header.php';
         <section class="security-section" data-aos="fade-up">
             <div class="security-header">
                 <span class="security-icon">🔒</span>
-                <h2 class="security-title">Analisi Sicurezza</h2>
+                <h2 class="security-title">Analisi Sicurezza DNS</h2>
             </div>
             
             <div class="security-grid">
@@ -796,6 +1045,201 @@ require_once ABSPATH . 'templates/header.php';
         </section>
         <?php endif; ?>
         
+        <!-- Performance Analysis -->
+        <?php if ($performance_data): ?>
+        <section class="performance-section" data-aos="fade-up">
+            <div class="performance-header">
+                <span class="perf-icon">⚡</span>
+                <h2 class="perf-title">Analisi Performance</h2>
+            </div>
+            
+            <div class="performance-metrics">
+                <?php if (isset($performance_data['dns_lookup'])): ?>
+                <div class="metric-card">
+                    <div class="metric-value"><?php echo $performance_data['dns_lookup']; ?>ms</div>
+                    <div class="metric-label">DNS Lookup</div>
+                </div>
+                <?php endif; ?>
+                
+                <?php if (isset($performance_data['ttfb'])): ?>
+                <div class="metric-card">
+                    <div class="metric-value"><?php echo $performance_data['ttfb']; ?>ms</div>
+                    <div class="metric-label">Time to First Byte</div>
+                </div>
+                <?php endif; ?>
+                
+                <?php if (isset($performance_data['page_load'])): ?>
+                <div class="metric-card">
+                    <div class="metric-value"><?php echo number_format($performance_data['page_load'] / 1000, 2); ?>s</div>
+                    <div class="metric-label">Page Load Time</div>
+                </div>
+                <?php endif; ?>
+                
+                <?php if (isset($performance_data['page_size'])): ?>
+                <div class="metric-card">
+                    <div class="metric-value"><?php echo formatBytes($performance_data['page_size']); ?></div>
+                    <div class="metric-label">Page Size</div>
+                </div>
+                <?php endif; ?>
+            </div>
+            
+            <?php if (isset($performance_data['optimization'])): ?>
+            <div class="performance-optimization">
+                <h3>Ottimizzazioni Rilevate</h3>
+                <div class="optimization-grid">
+                    <div class="opt-item <?php echo $performance_data['optimization']['compression'] ? 'enabled' : 'disabled'; ?>">
+                        <span><?php echo $performance_data['optimization']['compression'] ? '✅' : '❌'; ?></span>
+                        Compressione <?php echo $performance_data['optimization']['compression_type'] ?? 'Non attiva'; ?>
+                    </div>
+                    <div class="opt-item <?php echo $performance_data['optimization']['caching'] ? 'enabled' : 'disabled'; ?>">
+                        <span><?php echo $performance_data['optimization']['caching'] ? '✅' : '❌'; ?></span>
+                        Cache Headers
+                    </div>
+                    <div class="opt-item <?php echo $performance_data['optimization']['http2'] ? 'enabled' : 'disabled'; ?>">
+                        <span><?php echo $performance_data['optimization']['http2'] ? '✅' : '❌'; ?></span>
+                        HTTP/2 Support
+                    </div>
+                    <div class="opt-item <?php echo $performance_data['optimization']['cdn'] ? 'enabled' : 'disabled'; ?>">
+                        <span><?php echo $performance_data['optimization']['cdn'] ? '✅' : '❌'; ?></span>
+                        CDN Rilevato
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
+        </section>
+        <?php endif; ?>
+        
+        <!-- SEO & Social Meta -->
+        <?php if ($social_meta): ?>
+        <section class="social-meta-section" data-aos="fade-up">
+            <div class="social-header">
+                <span class="social-icon">📱</span>
+                <h2 class="social-title">Meta Tag Social & SEO</h2>
+            </div>
+            
+            <?php if (isset($social_meta['basic'])): ?>
+            <div class="meta-group">
+                <h3>Meta Tag Base</h3>
+                <div class="meta-items">
+                    <?php foreach ($social_meta['basic'] as $name => $content): ?>
+                    <div class="meta-item">
+                        <span class="meta-name"><?php echo htmlspecialchars($name); ?>:</span>
+                        <span class="meta-content"><?php echo htmlspecialchars($content); ?></span>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <?php endif; ?>
+            
+            <?php if (isset($social_meta['opengraph']) && !empty($social_meta['opengraph'])): ?>
+            <div class="meta-group">
+                <h3>Open Graph</h3>
+                <div class="meta-items">
+                    <?php foreach ($social_meta['opengraph'] as $property => $content): ?>
+                    <div class="meta-item">
+                        <span class="meta-name"><?php echo htmlspecialchars($property); ?>:</span>
+                        <span class="meta-content"><?php echo htmlspecialchars($content); ?></span>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <?php endif; ?>
+            
+            <?php if (isset($social_meta['twitter']) && !empty($social_meta['twitter'])): ?>
+            <div class="meta-group">
+                <h3>Twitter Card</h3>
+                <div class="meta-items">
+                    <?php foreach ($social_meta['twitter'] as $name => $content): ?>
+                    <div class="meta-item">
+                        <span class="meta-name"><?php echo htmlspecialchars($name); ?>:</span>
+                        <span class="meta-content"><?php echo htmlspecialchars($content); ?></span>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <?php endif; ?>
+        </section>
+        <?php endif; ?>
+        
+        <!-- Robots.txt & Sitemap -->
+        <?php if ($robots_analysis || $sitemap_analysis): ?>
+        <section class="robots-sitemap-section" data-aos="fade-up">
+            <div class="robots-sitemap-header">
+                <span class="robots-icon">🤖</span>
+                <h2 class="robots-title">Robots.txt & Sitemap</h2>
+            </div>
+            
+            <div class="robots-sitemap-grid">
+                <?php if ($robots_analysis): ?>
+                <div class="robots-card">
+                    <h3>Robots.txt</h3>
+                    <div class="robots-status <?php echo $robots_analysis['found'] ? 'found' : 'not-found'; ?>">
+                        <?php echo $robots_analysis['found'] ? '✅ Trovato' : '❌ Non trovato'; ?>
+                    </div>
+                    <?php if ($robots_analysis['found']): ?>
+                    <div class="robots-details">
+                        <p>User-agents: <?php echo count($robots_analysis['user_agents']); ?></p>
+                        <p>Regole disallow: <?php echo count($robots_analysis['disallow']); ?></p>
+                        <p>Regole allow: <?php echo count($robots_analysis['allow']); ?></p>
+                        <?php if (!empty($robots_analysis['sitemap'])): ?>
+                        <p>Sitemap dichiarate: <?php echo count($robots_analysis['sitemap']); ?></p>
+                        <?php endif; ?>
+                    </div>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
+                
+                <?php if ($sitemap_analysis): ?>
+                <div class="sitemap-card">
+                    <h3>Sitemap XML</h3>
+                    <div class="sitemap-status <?php echo $sitemap_analysis['found'] ? 'found' : 'not-found'; ?>">
+                        <?php echo $sitemap_analysis['found'] ? '✅ Trovata' : '❌ Non trovata'; ?>
+                    </div>
+                    <?php if ($sitemap_analysis['found']): ?>
+                    <div class="sitemap-details">
+                        <p>URL totali: <?php echo $sitemap_analysis['url_count']; ?></p>
+                        <p>Formato: <?php echo strtoupper($sitemap_analysis['format']); ?></p>
+                        <?php if ($sitemap_analysis['last_modified']): ?>
+                        <p>Ultimo aggiornamento: <?php echo $sitemap_analysis['last_modified']; ?></p>
+                        <?php endif; ?>
+                        <?php if (!empty($sitemap_analysis['index_files'])): ?>
+                        <p>Sitemap index: <?php echo count($sitemap_analysis['index_files']); ?> file</p>
+                        <?php endif; ?>
+                    </div>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
+            </div>
+        </section>
+        <?php endif; ?>
+        
+        <!-- Port Scan Results -->
+        <?php if ($port_scan_results && !empty($port_scan_results['ports'])): ?>
+        <section class="ports-section" data-aos="fade-up">
+            <div class="ports-header">
+                <span class="ports-icon">🔌</span>
+                <h2 class="ports-title">Scansione Porte</h2>
+            </div>
+            
+            <div class="ports-summary">
+                <p>IP scansionato: <strong><?php echo htmlspecialchars($port_scan_results['ip']); ?></strong></p>
+                <p>Porte aperte: <strong><?php echo $port_scan_results['open_count']; ?></strong> su <?php echo $port_scan_results['total_scanned']; ?> scansionate</p>
+            </div>
+            
+            <div class="ports-grid">
+                <?php foreach ($port_scan_results['ports'] as $port => $info): ?>
+                <?php if ($info['status'] === 'open'): ?>
+                <div class="port-item open">
+                    <div class="port-number"><?php echo $port; ?></div>
+                    <div class="port-service"><?php echo htmlspecialchars($info['service']); ?></div>
+                    <div class="port-status">Aperta</div>
+                </div>
+                <?php endif; ?>
+                <?php endforeach; ?>
+            </div>
+        </section>
+        <?php endif; ?>
+        
     </div>
 </section>
 <?php endif; ?>
@@ -805,6 +1249,13 @@ require_once ABSPATH . 'templates/header.php';
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('domainForm');
     const analyzeBtn = document.getElementById('analyzeBtn');
+    
+    // Example domain buttons
+    document.querySelectorAll('.example-link').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.getElementById('domain').value = this.dataset.domain;
+        });
+    });
     
     // Form submission
     form.addEventListener('submit', function(e) {
@@ -818,7 +1269,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 analyzeBtn.disabled = false;
                 analyzeBtn.innerHTML = '<span class="btn-text">Analizza</span><span class="btn-icon">→</span>';
             }
-        }, 30000); // 30 secondi di timeout
+        }, 60000); // 60 secondi di timeout
     });
     
     // FAQ toggle
@@ -858,6 +1309,52 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+    
+    // Export DNS data
+    window.exportDNS = function() {
+        const dnsData = <?php echo json_encode($dns_results); ?>;
+        const dataStr = JSON.stringify(dnsData, null, 2);
+        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+        
+        const exportFileDefaultName = 'dns-records-<?php echo $domain; ?>.json';
+        
+        const linkElement = document.createElement('a');
+        linkElement.setAttribute('href', dataUri);
+        linkElement.setAttribute('download', exportFileDefaultName);
+        linkElement.click();
+    };
+    
+    // Copy all DNS records
+    window.copyAllDNS = function() {
+        const dnsData = <?php echo json_encode($dns_results); ?>;
+        const dataStr = JSON.stringify(dnsData, null, 2);
+        
+        navigator.clipboard.writeText(dataStr).then(function() {
+            showNotification('Record DNS copiati negli appunti!', 'success');
+        }, function(err) {
+            showNotification('Errore durante la copia', 'error');
+        });
+    };
+    
+    // Notification helper
+    function showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.textContent = message;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.classList.add('show');
+        }, 100);
+        
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => {
+                document.body.removeChild(notification);
+            }, 300);
+        }, 3000);
+    }
 });
 </script>
 
@@ -909,6 +1406,28 @@ document.addEventListener('DOMContentLoaded', function() {
 .feature-card p {
     color: var(--gray-600);
     line-height: 1.6;
+    margin-bottom: 20px;
+}
+
+.feature-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    text-align: left;
+}
+
+.feature-list li {
+    padding: 5px 0;
+    color: var(--gray-600);
+    position: relative;
+    padding-left: 20px;
+}
+
+.feature-list li:before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: var(--success);
 }
 
 /* How it works */
@@ -1072,6 +1591,386 @@ document.addEventListener('DOMContentLoaded', function() {
     box-shadow: var(--shadow-lg);
 }
 
+/* Advanced options */
+.advanced-options {
+    margin-top: 15px;
+}
+
+.checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.9rem;
+    color: var(--gray-600);
+    cursor: pointer;
+}
+
+.checkbox-label input {
+    margin-right: 8px;
+}
+
+/* New sections styles */
+.ssl-section,
+.security-headers-section,
+.technologies-section,
+.performance-section,
+.social-meta-section,
+.robots-sitemap-section,
+.ports-section {
+    margin-top: 60px;
+    background: white;
+    padding: 40px;
+    border-radius: 16px;
+    box-shadow: var(--shadow-sm);
+}
+
+/* SSL styles */
+.ssl-status {
+    display: flex;
+    align-items: center;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+}
+
+.ssl-valid {
+    background: var(--success-light);
+    color: var(--success-dark);
+}
+
+.ssl-invalid {
+    background: var(--error-light);
+    color: var(--error-dark);
+}
+
+.ssl-status-icon {
+    font-size: 48px;
+    margin-right: 20px;
+}
+
+.ssl-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.ssl-detail-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.detail-label {
+    font-weight: 600;
+    color: var(--gray-600);
+    margin-bottom: 5px;
+}
+
+.detail-value {
+    color: var(--gray-800);
+}
+
+/* Security headers styles */
+.security-score {
+    display: inline-block;
+    margin-left: auto;
+}
+
+.score-badge {
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 600;
+}
+
+.score-excellent { background: var(--success-light); color: var(--success-dark); }
+.score-good { background: var(--info-light); color: var(--info-dark); }
+.score-fair { background: var(--warning-light); color: var(--warning-dark); }
+.score-poor { background: var(--error-light); color: var(--error-dark); }
+
+.headers-grid {
+    display: grid;
+    gap: 20px;
+    margin-top: 30px;
+}
+
+.header-item {
+    display: flex;
+    align-items: flex-start;
+    padding: 20px;
+    border-radius: 12px;
+    background: var(--gray-50);
+}
+
+.header-present {
+    background: var(--success-light);
+}
+
+.header-missing {
+    background: var(--error-light);
+}
+
+.header-status {
+    font-size: 24px;
+    margin-right: 15px;
+}
+
+.header-info h4 {
+    margin: 0 0 10px 0;
+    color: var(--gray-800);
+}
+
+.header-info p {
+    margin: 0 0 10px 0;
+    color: var(--gray-600);
+}
+
+.header-info code {
+    display: block;
+    padding: 10px;
+    background: rgba(0,0,0,0.05);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    overflow-x: auto;
+}
+
+/* Technologies styles */
+.technologies-grid {
+    display: grid;
+    gap: 30px;
+    margin-top: 30px;
+}
+
+.tech-category h3 {
+    margin-bottom: 15px;
+    color: var(--gray-700);
+}
+
+.tech-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.tech-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    background: var(--gray-100);
+    border-radius: 25px;
+    font-size: 0.95rem;
+}
+
+.tech-item img {
+    width: 24px;
+    height: 24px;
+    margin-right: 10px;
+}
+
+.tech-version {
+    margin-left: 5px;
+    opacity: 0.7;
+}
+
+/* Performance styles */
+.performance-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin: 30px 0;
+}
+
+.metric-card {
+    text-align: center;
+    padding: 30px;
+    background: var(--gray-50);
+    border-radius: 12px;
+}
+
+.metric-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 10px;
+}
+
+.metric-label {
+    color: var(--gray-600);
+    font-size: 0.95rem;
+}
+
+.optimization-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.opt-item {
+    padding: 15px;
+    border-radius: 8px;
+    background: var(--gray-50);
+}
+
+.opt-item.enabled {
+    background: var(--success-light);
+}
+
+.opt-item.disabled {
+    background: var(--error-light);
+}
+
+/* Social meta styles */
+.meta-group {
+    margin-bottom: 30px;
+}
+
+.meta-group h3 {
+    margin-bottom: 15px;
+    color: var(--gray-700);
+}
+
+.meta-items {
+    display: grid;
+    gap: 15px;
+}
+
+.meta-item {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 15px;
+    padding: 15px;
+    background: var(--gray-50);
+    border-radius: 8px;
+}
+
+.meta-name {
+    font-weight: 600;
+    color: var(--gray-700);
+}
+
+.meta-content {
+    color: var(--gray-600);
+    word-break: break-word;
+}
+
+/* Robots/Sitemap styles */
+.robots-sitemap-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 30px;
+    margin-top: 30px;
+}
+
+.robots-card,
+.sitemap-card {
+    padding: 30px;
+    background: var(--gray-50);
+    border-radius: 12px;
+}
+
+.robots-status,
+.sitemap-status {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 20px 0;
+}
+
+.robots-status.found,
+.sitemap-status.found {
+    color: var(--success);
+}
+
+.robots-status.not-found,
+.sitemap-status.not-found {
+    color: var(--error);
+}
+
+.robots-details,
+.sitemap-details {
+    margin-top: 20px;
+}
+
+.robots-details p,
+.sitemap-details p {
+    margin: 10px 0;
+    color: var(--gray-700);
+}
+
+/* Port scan styles */
+.ports-summary {
+    margin: 20px 0;
+    padding: 20px;
+    background: var(--gray-50);
+    border-radius: 12px;
+}
+
+.ports-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 15px;
+    margin-top: 30px;
+}
+
+.port-item {
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+    background: var(--gray-100);
+}
+
+.port-item.open {
+    background: var(--warning-light);
+}
+
+.port-number {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 5px;
+}
+
+.port-service {
+    font-weight: 600;
+    color: var(--gray-700);
+    margin-bottom: 5px;
+}
+
+.port-status {
+    font-size: 0.9rem;
+    color: var(--gray-600);
+}
+
+/* Notification styles */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 25px;
+    border-radius: 8px;
+    background: white;
+    box-shadow: var(--shadow-lg);
+    transform: translateX(400px);
+    transition: transform 0.3s ease;
+    z-index: 1000;
+}
+
+.notification.show {
+    transform: translateX(0);
+}
+
+.notification-success {
+    background: var(--success);
+    color: white;
+}
+
+.notification-error {
+    background: var(--error);
+    color: white;
+}
+
+.notification-info {
+    background: var(--info);
+    color: white;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .features-grid {
@@ -1090,6 +1989,54 @@ document.addEventListener('DOMContentLoaded', function() {
     
     .step-card {
         max-width: 300px;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .whois-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .cloud-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .headers-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .performance-metrics {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .meta-item {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Print styles */
+@media print {
+    .dns-actions,
+    .domain-actions,
+    .form-section,
+    .features-section,
+    .how-it-works-section,
+    .faq-section,
+    .cta-section,
+    header,
+    footer {
+        display: none !important;
+    }
+    
+    .results-section {
+        padding: 0;
+    }
+    
+    .health-score-circle svg {
+        width: 150px;
+        height: 150px;
     }
 }
 </style>
@@ -1248,6 +2195,13 @@ function getReputationColor($score) {
     return '#ee5a6f';
 }
 
+function getScoreClass($score) {
+    if ($score >= 90) return 'score-excellent';
+    if ($score >= 70) return 'score-good';
+    if ($score >= 50) return 'score-fair';
+    return 'score-poor';
+}
+
 function calculateDomainHealth($data) {
     $score = 100;
     $issues = array();
@@ -1255,7 +2209,7 @@ function calculateDomainHealth($data) {
     // Penalità per tempo di risposta
     if ($data['response_time'] > 1000) {
         $score -= 10;
-        $issues[] = 'Tempo di risposta elevato';
+        $issues[] = 'Tempo di risposta DNS elevato';
     } elseif ($data['response_time'] > 500) {
         $score -= 5;
     }
@@ -1301,6 +2255,35 @@ function calculateDomainHealth($data) {
         }
     }
     
+    // Penalità per SSL
+    if (isset($data['ssl']) && isset($data['ssl']['valid'])) {
+        if (!$data['ssl']['valid']) {
+            $score -= 20;
+            $issues[] = 'Certificato SSL non valido';
+        } elseif (isset($data['ssl']['days_until_expiry']) && $data['ssl']['days_until_expiry'] < 30) {
+            $score -= 10;
+            $issues[] = 'Certificato SSL in scadenza';
+        }
+    }
+    
+    // Penalità per security headers
+    if (isset($data['headers']) && isset($data['headers']['score'])) {
+        if ($data['headers']['score'] < 50) {
+            $score -= 15;
+            $issues[] = 'Security headers insufficienti';
+        } elseif ($data['headers']['score'] < 80) {
+            $score -= 5;
+        }
+    }
+    
+    // Penalità per performance
+    if (isset($data['performance'])) {
+        if (isset($data['performance']['ttfb']) && $data['performance']['ttfb'] > 1000) {
+            $score -= 5;
+            $issues[] = 'Performance lenta';
+        }
+    }
+    
     // Normalizza score
     $score = max(0, min(100, $score));
     
@@ -1338,5 +2321,26 @@ if (!function_exists('getBreadcrumb')) {
             array('name' => $page_name, 'url' => '')
         );
     }
+}
+
+// Helper function per formattare bytes
+function formatBytes($bytes, $precision = 2) {
+    $units = array('B', 'KB', 'MB', 'GB', 'TB');
+    
+    $bytes = max($bytes, 0);
+    $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
+    $pow = min($pow, count($units) - 1);
+    
+    $bytes /= pow(1024, $pow);
+    
+    return round($bytes, $precision) . ' ' . $units[$pow];
+}
+
+function getExpirationClass($days) {
+    if ($days === false) return '';
+    if ($days < 0) return 'text-danger';
+    if ($days < 30) return 'text-danger';
+    if ($days < 90) return 'text-warning';
+    return 'text-success';
 }
 ?>
