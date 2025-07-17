@@ -89,7 +89,7 @@ $assets_version = defined('APP_VERSION') ? APP_VERSION : '4.0';
                             <li><a href="/guide/microsoft-365">Setup Microsoft 365</a></li>
                             <li><a href="/guide/google-workspace">Setup Google Workspace</a></li>
                             <li><a href="/blog">Blog</a></li>
-                            <li><a href="/changelog">Changelog</a></li>
+                            <li><a href="/changelog.php">Changelog</a></li>
                         </ul>
                     </div>
                     
@@ -143,7 +143,7 @@ $assets_version = defined('APP_VERSION') ? APP_VERSION : '4.0';
                             <small>
                                 Controllo Domini v<?php echo defined('APP_VERSION') ? APP_VERSION : '4.0'; ?> | 
                                 <a href="/status" rel="nofollow">Status</a> | 
-                                <a href="/changelog">Changelog</a>
+                                <a href="/changelog.php">Changelog</a>
                             </small>
                         </p>
                     </div>
@@ -226,6 +226,59 @@ $assets_version = defined('APP_VERSION') ? APP_VERSION : '4.0';
     
     <!-- Animazioni Statistiche Homepage -->
     <script>
+        // Gestione timeout per l'analisi del dominio
+        document.addEventListener('DOMContentLoaded', function() {
+            const domainForm = document.getElementById('domainForm');
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            
+            if (domainForm && analyzeBtn) {
+                // Timeout di sicurezza per l'analisi
+                let analysisTimeout;
+                
+                domainForm.addEventListener('submit', function(e) {
+                    // Mostra loading overlay
+                    if (loadingOverlay) {
+                        loadingOverlay.classList.add('active');
+                    }
+                    
+                    // Disabilita il bottone
+                    analyzeBtn.disabled = true;
+                    analyzeBtn.innerHTML = '<span class="loading"></span> Analisi in corso...';
+                    
+                    // Imposta un timeout di 30 secondi
+                    analysisTimeout = setTimeout(function() {
+                        // Se dopo 30 secondi siamo ancora qui, ricarica la pagina
+                        if (loadingOverlay && loadingOverlay.classList.contains('active')) {
+                            console.error('Timeout analisi - ricaricamento pagina');
+                            
+                            // Nascondi overlay
+                            loadingOverlay.classList.remove('active');
+                            
+                            // Mostra errore
+                            if (typeof showNotification === 'function') {
+                                showNotification('L\'analisi sta impiegando troppo tempo. Riprova tra qualche istante.', 'error');
+                            } else {
+                                alert('L\'analisi sta impiegando troppo tempo. La pagina verrà ricaricata.');
+                            }
+                            
+                            // Ricarica la pagina dopo 2 secondi
+                            setTimeout(function() {
+                                window.location.reload();
+                            }, 2000);
+                        }
+                    }, 30000); // 30 secondi di timeout
+                });
+                
+                // Se la pagina viene ricaricata/cambiata, pulisci il timeout
+                window.addEventListener('beforeunload', function() {
+                    if (analysisTimeout) {
+                        clearTimeout(analysisTimeout);
+                    }
+                });
+            }
+        });
+        
         // Animazione contatore numeri
         function animateCounter(element, target) {
             const duration = 2000; // 2 secondi
