@@ -96,7 +96,7 @@ function followRedirectChain($url, $options) {
         
         $visited_urls[] = $current_url;
         
-        // Effettua richiesta
+        // Fetch URL
         $response = fetchUrlWithDetails($current_url, $options);
         
         // Aggiungi alla catena
@@ -105,63 +105,73 @@ function followRedirectChain($url, $options) {
             'status_code' => $response['http_code'],
             'status_text' => getHttpStatusText($response['http_code']),
             'response_time' => $response['response_time'],
-            'headers' => $response['headers'],
-            'redirect_to' => $response['redirect_url'],
+            'content_type' => $response['content_type'],
             'redirect_type' => classifyRedirectType($response['http_code']),
-            'size' => $response['size_download']
+            'headers' => $response['headers']
         );
         
-        // Se non è un redirect, abbiamo finito
-        if (!in_array($response['http_code'], array(301, 302, 303, 307, 308))) {
+        // Se non è un redirect, termina
+        if ($response['http_code'] < 300 || $response['http_code'] >= 400) {
             $result['final_url'] = $current_url;
             break;
         }
         
-        // Controlla se c'è un URL di redirect
-        if (empty($response['redirect_url'])) {
-            $result['error'] = 'Redirect senza destinazione';
-            $result['status'] = 'error';
+        // Se c'è un redirect
+        if ($response['redirect_url']) {
+            $current_url = $response['redirect_url'];
+            $result['redirect_count']++;
+        } else {
+            // Redirect senza location header
+            $result['error'] = 'Redirect senza header Location';
             break;
         }
         
-        $result['redirect_count']++;
-        $current_url = $response['redirect_url'];
-        
-        // Controlla limiti
+        // Controlla limite redirect
         if ($i == $options['max_redirects']) {
             $result['error'] = 'Troppi redirect (limite: ' . $options['max_redirects'] . ')';
-            $result['status'] = 'error';
+            break;
         }
     }
     
     $result['total_time'] = round((microtime(true) - $start_time) * 1000, 2);
     
-    // Analizza tipi di redirect nella catena
-    $result['redirect_analysis'] = analyzeRedirectTypes($result['chain']);
+    // Se non ci sono stati redirect
+    if ($result['redirect_count'] == 0) {
+        $result['final_url'] = $url;
+    }
+    
+    // Analizza tipi di redirect
+    if ($result['redirect_count'] > 0) {
+        $result['redirect_analysis'] = analyzeRedirectTypes($result['chain']);
+        $result['http_to_https'] = $result['redirect_analysis']['http_to_https'];
+        $result['www_redirect'] = $result['redirect_analysis']['www_normalization'];
+    }
     
     return $result;
 }
 
 /**
- * Effettua richiesta HTTP con dettagli
+ * Recupera dettagli URL con cURL
  * 
- * @param string $url URL da richiedere
- * @param array $options Opzioni
+ * @param string $url URL da analizzare
+ * @param array $options Opzioni cURL
  * @return array Dettagli risposta
  */
-function fetchUrlWithDetails($url, $options) {
-    $ch = curl_init();
+function fetchUrlWithDetails($url, $options = array()) {
+    $ch = curl_init($url);
+    
+    // Imposta user agent predefinito se non presente nelle opzioni
+    $user_agent = isset($options['user_agent']) ? $options['user_agent'] : 'Mozilla/5.0 (compatible; ControlloDomin/1.0)';
     
     curl_setopt_array($ch, array(
-        CURLOPT_URL => $url,
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_HEADER => true,
-        CURLOPT_NOBODY => false,
         CURLOPT_FOLLOWLOCATION => false,
-        CURLOPT_TIMEOUT => $options['timeout'],
+        CURLOPT_HEADER => true,
+        CURLOPT_NOBODY => true,
+        CURLOPT_TIMEOUT => isset($options['timeout']) ? $options['timeout'] : 30,
         CURLOPT_SSL_VERIFYPEER => false,
         CURLOPT_SSL_VERIFYHOST => false,
-        CURLOPT_USERAGENT => isset($options['user_agent']) ? $options['user_agent'] : 'Mozilla/5.0 (compatible; ControlloDomin/1.0)',
+        CURLOPT_USERAGENT => $user_agent,
         CURLOPT_ENCODING => 'gzip, deflate'
     ));
     
@@ -324,28 +334,30 @@ function checkUrlVariants($url) {
         'https_www' => "https://www.{$base_domain}{$path}{$query}"
     );
     
-    foreach ($test_variants as $type => $variant_url) {
-        // Non testare l'URL originale
-        if ($variant_url === $url) {
-            continue;
-        }
+    // Testa ogni variante
+    foreach ($test_variants as $key => $variant_url) {
+        $response = fetchUrlWithDetails($variant_url, array('timeout' => 10));
         
-        $response = fetchUrlWithDetails($variant_url, array(
-            'timeout' => 5,
-            'user_agent' => 'Mozilla/5.0 (compatible; ControlloDomin/1.0)'
-        ));
-        
-        $variants[$type] = array(
+        $variants[$key] = array(
             'url' => $variant_url,
+            'accessible' => ($response['http_code'] > 0 && $response['http_code'] < 400),
             'status_code' => $response['http_code'],
-            'redirects_to' => $response['redirect_url'],
-            'response_time' => $response['response_time'],
-            'accessible' => $response['http_code'] > 0
+            'final_url' => null,
+            'redirects' => false
         );
+        
+        // Se c'è un redirect, segui la catena
+        if ($response['http_code'] >= 300 && $response['http_code'] < 400 && $response['redirect_url']) {
+            $variants[$key]['redirects'] = true;
+            $redirect_chain = analyzeRedirectChain($variant_url, array('check_variants' => false));
+            $variants[$key]['final_url'] = $redirect_chain['final_url'];
+        } else {
+            $variants[$key]['final_url'] = $variant_url;
+        }
     }
     
-    // Analizza consistenza
-    $analysis = analyzeVariantConsistency($variants, $url);
+    // Analizza le varianti
+    $analysis = analyzeUrlVariants($variants);
     
     return array(
         'variants' => $variants,
@@ -354,31 +366,29 @@ function checkUrlVariants($url) {
 }
 
 /**
- * Analizza consistenza delle varianti URL
+ * Analizza le varianti URL
  * 
  * @param array $variants Varianti testate
- * @param string $original_url URL originale
  * @return array Analisi
  */
-function analyzeVariantConsistency($variants, $original_url) {
+function analyzeUrlVariants($variants) {
     $analysis = array(
-        'all_redirect_to_same' => true,
+        'all_redirect_to_same' => false,
         'preferred_version' => null,
         'has_https' => false,
         'forces_https' => false,
-        'has_www_consistency' => true,
+        'has_www' => false,
+        'forces_www' => false,
         'issues' => array()
     );
     
     $final_urls = array();
     $accessible_count = 0;
     
-    foreach ($variants as $type => $variant) {
+    foreach ($variants as $key => $variant) {
         if ($variant['accessible']) {
             $accessible_count++;
-            
-            // Determina URL finale
-            $final_url = $variant['redirects_to'] ?: $variant['url'];
+            $final_url = $variant['final_url'] ? $variant['final_url'] : $variant['url'];
             $final_urls[] = $final_url;
             
             // Controlla HTTPS
@@ -699,29 +709,31 @@ function generateRedirectRecommendations($results) {
             'priority' => 'high',
             'title' => 'Riduci il numero di redirect',
             'description' => 'Hai ' . $results['redirect_count'] . ' redirect. Idealmente dovresti averne al massimo 1.',
-            'solution' => 'Configura redirect diretti dalla sorgente alla destinazione finale'
+            'solution' => 'Aggiorna i link interni per puntare direttamente all\'URL finale'
         );
     }
     
-    // Usa redirect permanenti
+    // Usa redirect permanenti per cambi permanenti
     if (isset($results['redirect_analysis']['temporary_count']) && 
-        $results['redirect_analysis']['temporary_count'] > 0) {
+        $results['redirect_analysis']['temporary_count'] > 0 &&
+        ($results['redirect_analysis']['http_to_https'] || 
+         $results['redirect_analysis']['www_normalization'])) {
         $recommendations[] = array(
             'priority' => 'medium',
-            'title' => 'Usa redirect permanenti (301)',
-            'description' => 'Stai usando redirect temporanei che non trasferiscono il ranking SEO',
-            'solution' => 'Cambia i redirect 302/307 in 301 per cambi permanenti'
+            'title' => 'Usa redirect 301 invece di 302',
+            'description' => 'Stai usando redirect temporanei per cambi che sembrano permanenti',
+            'solution' => 'Cambia i redirect 302 in 301 per trasferire il valore SEO'
         );
     }
     
-    // Implementa HTTPS
-    if (isset($results['url_variants']['analysis']) && 
+    // HTTPS non forzato
+    if (isset($results['url_variants']['analysis']['has_https']) && 
         !$results['url_variants']['analysis']['forces_https']) {
         $recommendations[] = array(
             'priority' => 'high',
-            'title' => 'Implementa redirect HTTPS',
-            'description' => 'Il sito non forza l\'uso di HTTPS',
-            'solution' => 'Configura redirect da HTTP a HTTPS per tutte le pagine'
+            'title' => 'Forza HTTPS',
+            'description' => 'Il sito è accessibile sia in HTTP che HTTPS',
+            'solution' => 'Configura un redirect permanente da HTTP a HTTPS'
         );
     }
     
@@ -731,28 +743,17 @@ function generateRedirectRecommendations($results) {
         $recommendations[] = array(
             'priority' => 'medium',
             'title' => 'Aggiungi tag canonical',
-            'description' => 'La pagina finale non ha un tag canonical',
+            'description' => 'La pagina non ha un tag canonical',
             'solution' => 'Aggiungi <link rel="canonical" href="URL"> nell\'head della pagina'
         );
     }
     
-    // Unifica varianti URL
-    if (isset($results['url_variants']['analysis']['all_redirect_to_same']) && 
-        !$results['url_variants']['analysis']['all_redirect_to_same']) {
-        $recommendations[] = array(
-            'priority' => 'critical',
-            'title' => 'Unifica le varianti URL',
-            'description' => 'Le diverse versioni del tuo URL non redirigono tutte allo stesso posto',
-            'solution' => 'Configura tutti i redirect per puntare a una singola versione canonica'
-        );
-    }
-    
-    // Performance
-    if ($results['total_time'] > 1500) {
+    // Catena lenta
+    if ($results['total_time'] > 2000) {
         $recommendations[] = array(
             'priority' => 'medium',
-            'title' => 'Ottimizza la velocità dei redirect',
-            'description' => 'I redirect impiegano troppo tempo (' . round($results['total_time'] / 1000, 1) . 's)',
+            'title' => 'Ottimizza performance redirect',
+            'description' => 'La catena di redirect è lenta (' . round($results['total_time'] / 1000, 1) . 's)',
             'solution' => 'Riduci il numero di redirect e ottimizza la configurazione del server'
         );
     }
