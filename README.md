@@ -4,7 +4,7 @@
 
 ### Piattaforma Professionale per Analisi Completa Domini Web
 
-[![Version](https://img.shields.io/badge/version-4.1.0-blue.svg)](https://github.com/gtechgroupit/controllo-domini)
+[![Version](https://img.shields.io/badge/version-4.2.0-blue.svg)](https://github.com/gtechgroupit/controllo-domini)
 [![PHP Version](https://img.shields.io/badge/PHP-%3E%3D7.4-8892BF.svg)](https://php.net)
 [![License](https://img.shields.io/badge/license-Proprietary-orange.svg)](LICENSE)
 [![Documentation](https://img.shields.io/badge/docs-complete-green.svg)](documents/)
@@ -19,7 +19,7 @@
 
 ## 📋 Panoramica
 
-**Controllo Domini** è una piattaforma completa e professionale per l'analisi approfondita di domini web, sviluppata da G Tech Group. Offre **12 strumenti di analisi integrati** che coprono DNS, WHOIS, sicurezza, performance, SEO e molto altro.
+**Controllo Domini** è una piattaforma completa e professionale per l'analisi approfondita di domini web, sviluppata da G Tech Group. Offre **13 strumenti di analisi integrati** incluso il nuovo **Complete Website Scan** per web agency, che copre DNS, WHOIS, sicurezza, performance, SEO, tecnologie e business intelligence.
 
 ### 🎯 Per Chi è Questo Tool?
 
@@ -79,6 +79,21 @@
 - **Redirect Analysis**: Catene redirect, canonical
 - **Structured Data**: Schema.org validation
 - **Social Preview**: Anteprima per Facebook, Twitter, LinkedIn
+
+</td>
+</tr>
+<tr>
+<td colspan="2">
+
+### 🚀 **NUOVO** - Complete Website Scan (v4.2)
+
+**Analisi Completa per Web Agency**: Scansione approfondita con oltre 100 data point che include:
+- **Advanced SEO**: Meta tags, structured data (JSON-LD, Microdata, RDFa), headings, content analysis, SEO score 0-100
+- **Technology Detection**: 100+ tecnologie rilevate (CMS, frameworks, analytics, marketing, e-commerce, CDN, hosting)
+- **Business Intelligence**: Contatti, social profiles, company info, business model, certifications, team info
+- **Comprehensive Recommendations**: Priorità Critical/Important/Suggested con scoring A-F
+- **API Endpoint**: `/api/v2/complete?domain=example.com` con caching intelligente
+- **Export Report**: PDF, JSON, CSV per reportistica clienti
 
 </td>
 </tr>
@@ -156,19 +171,20 @@ Visita l'applicazione web e inserisci il dominio da analizzare:
 https://controllodomini.it
 ```
 
-### Via API (Future v4.2)
+### Via API (v4.2+)
 
 ```bash
+# Complete Website Scan (NEW)
+curl -X GET "https://api.controllodomini.it/v2/complete?domain=example.com" \
+  -H "X-API-Key: your_api_key"
+
 # DNS Lookup
-curl -X POST https://api.controllodomini.it/v2/dns/lookup \
-  -H "X-API-Key: your_api_key" \
-  -H "Content-Type: application/json" \
-  -d '{"domain": "example.com"}'
+curl -X GET "https://api.controllodomini.it/v2/dns?domain=example.com" \
+  -H "X-API-Key: your_api_key"
 
 # WHOIS Lookup
-curl -X POST https://api.controllodomini.it/v2/whois/lookup \
-  -H "X-API-Key: your_api_key" \
-  -d '{"domain": "example.com"}'
+curl -X GET "https://api.controllodomini.it/v2/whois?domain=example.com" \
+  -H "X-API-Key: your_api_key"
 ```
 
 Vedi [API Documentation](documents/API.md) per reference completa.
@@ -178,9 +194,10 @@ Vedi [API Documentation](documents/API.md) per reference completa.
 ## 🛠️ Stack Tecnologico
 
 ### Backend
-- **PHP 7.4+**: Linguaggio principale (procedural architecture)
+- **PHP 7.4+**: Linguaggio principale (OOP + procedural architecture)
 - **Apache 2.4**: Web server con mod_rewrite
-- **No Database**: Stateless application (query real-time a servizi esterni)
+- **PostgreSQL 12+**: Database principale (dal v4.2)
+- **Redis**: Cache layer con file fallback (dal v4.2)
 
 ### Frontend
 - **HTML5**: Markup semantico
@@ -220,26 +237,33 @@ Vedi [ARCHITECTURE.md](documents/ARCHITECTURE.md) per dettagli completi.
 
 | Metrica | Valore |
 |---------|--------|
-| **Linee di Codice** | ~14,757 PHP |
-| **Moduli Funzionali** | 13 |
-| **Funzioni Totali** | 206+ |
-| **File Documentazione** | 12 docs |
-| **Dimensione Docs** | ~200 KB |
+| **Linee di Codice** | ~25,000+ PHP |
+| **Moduli Funzionali** | 17 |
+| **Funzioni Totali** | 250+ |
+| **File Documentazione** | 14 docs |
+| **Dimensione Docs** | ~300 KB |
 | **TLD WHOIS Supportati** | 20+ |
 | **Server DNSBL** | 30+ |
 | **Tipi Record DNS** | 9 |
-| **Analisi Integrate** | 12 tools |
+| **Analisi Integrate** | 13 tools |
+| **Tecnologie Rilevate** | 100+ |
+| **Tabelle Database** | 20 |
 
 ---
 
 ## 🗺️ Roadmap
 
-### Q1 2025 - v4.2 (In Sviluppo)
-- 🗄️ Database integration (PostgreSQL)
-- 👤 User authentication system
-- 🔑 API v2.1 con API keys
-- 💾 Redis caching layer
-- 📄 Export PDF/CSV
+### ✅ Q1 2025 - v4.2 (Completato - Nov 2025)
+- ✅ Database integration (PostgreSQL con 20 tabelle)
+- ✅ User authentication system (login, register, 2FA, OAuth)
+- ✅ API v2.1 con API keys e rate limiting
+- ✅ Redis caching layer con file fallback
+- ✅ Export PDF/CSV/JSON/Excel
+- ✅ Dark mode con system preference detection
+- ✅ **Complete Website Scan** per web agency
+- ✅ Advanced SEO analysis con scoring
+- ✅ Technology detection (100+ tecnologie)
+- ✅ Business intelligence extraction
 
 ### Q2 2025 - v4.3
 - 👥 Team & organization management
