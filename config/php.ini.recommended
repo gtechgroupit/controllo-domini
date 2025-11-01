@@ -1,0 +1,167 @@
+; =====================================================
+; Controllo Domini - Recommended PHP Configuration
+; Place in /etc/php/8.2/apache2/php.ini (adjust path)
+; Or create .user.ini in app directory for shared hosting
+; =====================================================
+
+; =====================================================
+; PERFORMANCE
+; =====================================================
+
+; Max execution time (seconds)
+max_execution_time = 60
+
+; Max input time (seconds)
+max_input_time = 60
+
+; Memory limit
+memory_limit = 256M
+
+; Output buffering (performance boost)
+output_buffering = 4096
+
+; Realpath cache (significant performance boost)
+realpath_cache_size = 4096K
+realpath_cache_ttl = 600
+
+; =====================================================
+; OPCACHE (Critical for Performance)
+; =====================================================
+
+; Enable OPcache
+opcache.enable = 1
+opcache.enable_cli = 0
+
+; Memory
+opcache.memory_consumption = 128
+opcache.interned_strings_buffer = 8
+opcache.max_accelerated_files = 10000
+
+; Performance tuning
+opcache.revalidate_freq = 2
+opcache.validate_timestamps = 1
+opcache.fast_shutdown = 1
+
+; Optimization
+opcache.save_comments = 0
+opcache.enable_file_override = 1
+
+; JIT (PHP 8.0+) - Experimental
+; opcache.jit = tracing
+; opcache.jit_buffer_size = 100M
+
+; =====================================================
+; ERROR HANDLING
+; =====================================================
+
+; Production settings (hide errors from users)
+display_errors = Off
+display_startup_errors = Off
+log_errors = On
+error_reporting = E_ALL & ~E_DEPRECATED & ~E_STRICT
+
+; Error log location
+error_log = /var/log/php/controllo-domini-error.log
+
+; =====================================================
+; FILE UPLOADS
+; =====================================================
+
+file_uploads = On
+upload_max_filesize = 10M
+max_file_uploads = 20
+post_max_size = 10M
+
+; =====================================================
+; SESSION
+; =====================================================
+
+session.save_handler = files
+session.save_path = "/var/lib/php/sessions"
+session.gc_maxlifetime = 1440
+session.gc_probability = 1
+session.gc_divisor = 1000
+
+; Use cookies only
+session.use_only_cookies = 1
+session.use_strict_mode = 1
+
+; Security
+session.cookie_httponly = 1
+session.cookie_secure = 1
+session.cookie_samesite = "Lax"
+
+; =====================================================
+; SECURITY
+; =====================================================
+
+; Disable dangerous functions
+disable_functions = exec,passthru,shell_exec,system,proc_open,popen,curl_exec,curl_multi_exec,parse_ini_file,show_source
+
+; Note: If WHOIS needs shell_exec, remove from above
+
+; Expose PHP version
+expose_php = Off
+
+; File access restrictions
+open_basedir = "/var/www/controllo-domini:/tmp"
+allow_url_fopen = On
+allow_url_include = Off
+
+; =====================================================
+; DATE/TIME
+; =====================================================
+
+date.timezone = "Europe/Rome"
+
+; =====================================================
+; MBSTRING
+; =====================================================
+
+mbstring.language = Italian
+mbstring.internal_encoding = UTF-8
+mbstring.http_output = UTF-8
+mbstring.encoding_translation = On
+
+; =====================================================
+; CURL
+; =====================================================
+
+; Default timeout (can be overridden in code)
+default_socket_timeout = 60
+
+; =====================================================
+; ZLIB (Compression)
+; =====================================================
+
+zlib.output_compression = On
+zlib.output_compression_level = 6
+zlib.output_handler =
+
+; =====================================================
+; ASSERTIONS (Disable in Production)
+; =====================================================
+
+zend.assertions = -1
+assert.active = Off
+
+; =====================================================
+; DEVELOPMENT OVERRIDES
+; =====================================================
+; For development environment, use these settings:
+
+; [Development Only]
+; display_errors = On
+; display_startup_errors = On
+; error_reporting = E_ALL
+; opcache.revalidate_freq = 0
+; opcache.validate_timestamps = 1
+; zend.assertions = 1
+
+; =====================================================
+; MONITORING
+; =====================================================
+
+; Enable status page (useful for monitoring)
+; Requires PHP-FPM
+; pm.status_path = /php-fpm-status
