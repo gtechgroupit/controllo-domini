@@ -28,6 +28,7 @@ require_once __DIR__ . '/../../includes/dns-functions.php';
 require_once __DIR__ . '/../../includes/whois-functions.php';
 require_once __DIR__ . '/../../includes/blacklist-functions.php';
 require_once __DIR__ . '/../../includes/ssl-certificate.php';
+require_once __DIR__ . '/../../includes/complete-scan.php';
 
 class APIRouter {
     private $db;
@@ -210,6 +211,9 @@ class APIRouter {
                 return $this->handleAlerts($method, $action);
             case 'export':
                 return $this->handleExport($method, $action);
+            case 'complete':
+            case 'scan':
+                return $this->handleCompleteScan($method, $action);
             default:
                 throw new Exception('Invalid endpoint', 404);
         }
@@ -500,6 +504,50 @@ class APIRouter {
     private function handleExport($method, $action) {
         // Export implementation
         return ['success' => true, 'data' => [], 'message' => 'Export endpoint - Coming soon'];
+    }
+
+    /**
+     * Handle Complete Scan endpoints
+     */
+    private function handleCompleteScan($method, $action) {
+        if ($method !== 'GET') {
+            throw new Exception('Method not allowed', 405);
+        }
+
+        $domain = $_GET['domain'] ?? '';
+        if (empty($domain)) {
+            throw new Exception('Domain parameter required', 400);
+        }
+
+        // Validate domain
+        $domain = strtolower(trim($domain));
+        $domain = preg_replace('#^https?://#', '', $domain);
+        $domain = preg_replace('#/.*$#', '', $domain);
+
+        // Check cache (longer TTL since complete scan is resource-intensive)
+        $cache_key = "api:complete_scan:$domain";
+        $cached = $this->cache->get($cache_key);
+        if ($cached) {
+            return ['success' => true, 'data' => $cached, 'from_cache' => true];
+        }
+
+        // Track start time
+        $start_time = microtime(true);
+
+        // Perform complete scan
+        $results = performCompleteScan($domain);
+
+        // Calculate execution time
+        $execution_time = round((microtime(true) - $start_time) * 1000);
+        $results['execution_time_ms'] = $execution_time;
+
+        // Cache result (cache for 6 hours since this is expensive)
+        $this->cache->set($cache_key, $results, 21600);
+
+        // Log to history
+        $this->logAnalysis('complete_scan', $domain, $results);
+
+        return ['success' => true, 'data' => $results, 'from_cache' => false];
     }
 
     /**
