@@ -4,7 +4,7 @@
 
 ### Piattaforma Professionale per Analisi Completa Domini Web
 
-[![Version](https://img.shields.io/badge/version-4.2.0-blue.svg)](https://github.com/gtechgroupit/controllo-domini)
+[![Version](https://img.shields.io/badge/version-4.2.1-blue.svg)](https://github.com/gtechgroupit/controllo-domini)
 [![PHP Version](https://img.shields.io/badge/PHP-%3E%3D7.4-8892BF.svg)](https://php.net)
 [![License](https://img.shields.io/badge/license-Proprietary-orange.svg)](LICENSE)
 [![Documentation](https://img.shields.io/badge/docs-complete-green.svg)](documents/)
@@ -265,23 +265,37 @@ Vedi [ARCHITECTURE.md](documents/ARCHITECTURE.md) per dettagli completi.
 - ✅ Technology detection (100+ tecnologie)
 - ✅ Business intelligence extraction
 
+### ✅ Q1 2025 - v4.2.1 (Completato - Nov 2025) 🎉 **NUOVO**
+- ✅ **Professional PDF Export** - Report PDF con design professionale
+- ✅ **Email Notifications** - 5 tipi di notifiche con template HTML
+- ✅ **Webhook System** - Delivery sicuro con HMAC signature
+- ✅ **Bulk Scan** - Scansione multipla fino a 100 domini
+- ✅ **Scheduled Scans** - Automazione scan (hourly, daily, weekly, monthly)
+- ✅ **Competitive Analysis** - Confronto side-by-side fino a 10 siti
+- ✅ **Screenshot Capture** - Cattura responsive multi-device
+- ✅ **Advanced API** - 50+ nuovi endpoint per automazione
+
 ### Q2 2025 - v4.3
 - 👥 Team & organization management
 - 🔐 SSO (SAML, OAuth)
-- 📝 Audit logging
+- 📝 Audit logging avanzato
 - 🎨 White-label solution
+- 🔍 Headless browser integration
+- 🤖 AI-powered recommendations
 
 ### Q3 2025 - v5.0
 - 🔌 GraphQL API
-- 🪝 Webhooks system
 - 📦 Official SDKs (PHP, JS, Python, Go)
 - 🛠️ CLI tool
+- ⚡ Real-time monitoring WebSocket
+- 🌐 Multi-region deployment
 
 ### Q4 2025 - v5.1
-- 📊 Continuous monitoring
-- 🚨 Alert system multi-channel
-- 📈 Status pages
-- 🎯 SLA tracking
+- 📊 Continuous monitoring dashboard
+- 🚨 Alert system multi-channel (Slack, Teams, Discord, SMS)
+- 📈 Public status pages
+- 🎯 SLA tracking e uptime monitoring
+- 📱 Mobile app (iOS/Android)
 
 Vedi [ROADMAP completa](documents/ROADMAP.md) per dettagli.
 

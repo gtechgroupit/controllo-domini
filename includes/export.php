@@ -184,17 +184,24 @@ class ExportManager {
      * Export to PDF
      */
     private function exportPDF($data, $file_path) {
-        // Basic HTML to PDF conversion
-        // In production, use a library like TCPDF or mPDF
+        // Use new PDF export system
+        require_once __DIR__ . '/pdf-export.php';
 
+        // Check if this is a complete scan result
+        if (count($data) === 1 && isset($data[0]['results'])) {
+            $scan_data = json_decode($data[0]['results'], true);
+
+            if ($scan_data && isset($scan_data['domain'])) {
+                // Use professional PDF generator for complete scans
+                return generateCompleteScanPDF($scan_data, $file_path);
+            }
+        }
+
+        // Fallback to simple HTML for other export types
         $html = $this->generatePDFHTML($data);
-
-        // For now, save as HTML (in production, convert to actual PDF)
         $html_file = str_replace('.pdf', '.html', $file_path);
         file_put_contents($html_file, $html);
 
-        // TODO: Convert HTML to PDF using TCPDF, Dompdf, or wkhtmltopdf
-        // For now, return HTML file
         return $html_file;
     }
 
