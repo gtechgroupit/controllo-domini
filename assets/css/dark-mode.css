@@ -1,0 +1,360 @@
+/**
+ * Dark Mode Styles
+ *
+ * Dark theme for Controllo Domini
+ * Automatically applied when user prefers dark mode or toggles dark mode
+ *
+ * @package ControlloDomin
+ * @version 4.2.0
+ */
+
+/* Dark mode variables */
+:root[data-theme="dark"] {
+    /* Background colors */
+    --bg-color: #0f172a;
+    --bg-secondary: #1e293b;
+    --card-bg: #1e293b;
+    --bg-hover: #334155;
+
+    /* Text colors */
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-tertiary: #64748b;
+
+    /* Border colors */
+    --border-color: #334155;
+    --border-light: #475569;
+
+    /* Primary colors */
+    --primary-color: #3b82f6;
+    --primary-hover: #2563eb;
+    --primary-light: #1e40af;
+
+    /* Success colors */
+    --success-color: #10b981;
+    --success-bg: #064e3b;
+    --success-border: #065f46;
+
+    /* Warning colors */
+    --warning-color: #f59e0b;
+    --warning-bg: #78350f;
+    --warning-border: #92400e;
+
+    /* Error colors */
+    --error-color: #ef4444;
+    --error-bg: #7f1d1d;
+    --error-border: #991b1b;
+
+    /* Info colors */
+    --info-color: #06b6d4;
+    --info-bg: #164e63;
+    --info-border: #155e75;
+
+    /* Shadow */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+
+    /* Input */
+    --input-bg: #1e293b;
+    --input-border: #475569;
+    --input-focus-border: #3b82f6;
+}
+
+/* Apply dark mode styles */
+[data-theme="dark"] body {
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .card,
+[data-theme="dark"] .result-card,
+[data-theme="dark"] .tool-card,
+[data-theme="dark"] .stat-card,
+[data-theme="dark"] .content-card,
+[data-theme="dark"] .auth-card {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+    box-shadow: var(--shadow-md);
+}
+
+[data-theme="dark"] input[type="text"],
+[data-theme="dark"] input[type="email"],
+[data-theme="dark"] input[type="password"],
+[data-theme="dark"] input[type="search"],
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+    background-color: var(--input-bg);
+    border-color: var(--input-border);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] input:focus,
+[data-theme="dark"] select:focus,
+[data-theme="dark"] textarea:focus {
+    border-color: var(--input-focus-border);
+    background-color: var(--bg-secondary);
+}
+
+[data-theme="dark"] input::placeholder {
+    color: var(--text-tertiary);
+}
+
+[data-theme="dark"] .btn-secondary,
+[data-theme="dark"] .btn-outline {
+    background-color: var(--bg-secondary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .btn-secondary:hover,
+[data-theme="dark"] .btn-outline:hover {
+    background-color: var(--bg-hover);
+}
+
+[data-theme="dark"] table {
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] th {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] td {
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] tr:hover {
+    background-color: var(--bg-hover);
+}
+
+[data-theme="dark"] .nav-item {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .nav-item:hover {
+    background-color: var(--bg-hover);
+}
+
+[data-theme="dark"] .nav-item.active {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+[data-theme="dark"] code {
+    background-color: var(--bg-secondary);
+    color: var(--primary-color);
+}
+
+[data-theme="dark"] pre {
+    background-color: var(--bg-secondary);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .alert-success {
+    background-color: var(--success-bg);
+    border-color: var(--success-border);
+    color: var(--success-color);
+}
+
+[data-theme="dark"] .alert-warning {
+    background-color: var(--warning-bg);
+    border-color: var(--warning-border);
+    color: var(--warning-color);
+}
+
+[data-theme="dark"] .alert-error {
+    background-color: var(--error-bg);
+    border-color: var(--error-border);
+    color: var(--error-color);
+}
+
+[data-theme="dark"] .alert-info {
+    background-color: var(--info-bg);
+    border-color: var(--info-border);
+    color: var(--info-color);
+}
+
+[data-theme="dark"] .badge {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .badge-success {
+    background-color: var(--success-bg);
+    color: var(--success-color);
+}
+
+[data-theme="dark"] .badge-warning {
+    background-color: var(--warning-bg);
+    color: var(--warning-color);
+}
+
+[data-theme="dark"] .badge-error {
+    background-color: var(--error-bg);
+    color: var(--error-color);
+}
+
+[data-theme="dark"] .sidebar {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .dashboard-sidebar {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .header {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .footer {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+}
+
+[data-theme="dark"] a {
+    color: var(--primary-color);
+}
+
+[data-theme="dark"] a:hover {
+    color: var(--primary-hover);
+}
+
+[data-theme="dark"] .dropdown-menu {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .dropdown-item:hover {
+    background-color: var(--bg-hover);
+}
+
+[data-theme="dark"] .modal {
+    background-color: rgba(0, 0, 0, 0.8);
+}
+
+[data-theme="dark"] .modal-content {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .tooltip {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+/* Dark mode toggle button */
+.dark-mode-toggle {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    box-shadow: var(--shadow-lg);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    z-index: 1000;
+}
+
+.dark-mode-toggle:hover {
+    transform: scale(1.1);
+    box-shadow: var(--shadow-xl);
+}
+
+.dark-mode-toggle svg {
+    width: 24px;
+    height: 24px;
+}
+
+.dark-mode-toggle .sun-icon {
+    display: none;
+}
+
+.dark-mode-toggle .moon-icon {
+    display: block;
+}
+
+[data-theme="dark"] .dark-mode-toggle .sun-icon {
+    display: block;
+}
+
+[data-theme="dark"] .dark-mode-toggle .moon-icon {
+    display: none;
+}
+
+/* Smooth transitions */
+body,
+.card,
+.btn,
+input,
+select,
+textarea,
+.nav-item,
+.sidebar,
+.header,
+.footer {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Print styles - always light mode */
+@media print {
+    [data-theme="dark"] {
+        --bg-color: white;
+        --text-primary: black;
+        --card-bg: white;
+        --border-color: #ddd;
+    }
+
+    .dark-mode-toggle {
+        display: none;
+    }
+}
+
+/* Accessibility - respect user's system preference */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --bg-color: #0f172a;
+        --text-primary: #f1f5f9;
+        --card-bg: #1e293b;
+        /* ... other dark variables ... */
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    [data-theme="dark"] {
+        --border-color: #64748b;
+        --text-primary: #ffffff;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+
+    .dark-mode-toggle:hover {
+        transform: none;
+    }
+}
