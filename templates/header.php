@@ -100,13 +100,18 @@ $breadcrumb_data = getBreadcrumb(isset($page_name) ? $page_name : 'Home');
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
     
     <!-- CSS -->
-    <?php 
+    <?php
     $css_file = '/assets/css/style.css';
     $css_path = ABSPATH . 'assets/css/style.css';
     $css_version = file_exists($css_path) ? filemtime($css_path) : time();
+
+    $modern_css_file = '/assets/css/modern-ui.css';
+    $modern_css_path = ABSPATH . 'assets/css/modern-ui.css';
+    $modern_css_version = file_exists($modern_css_path) ? filemtime($modern_css_path) : time();
     ?>
     <link href="<?php echo $css_file; ?>?v=<?php echo $css_version; ?>" rel="stylesheet" type="text/css">
-    
+    <link href="<?php echo $modern_css_file; ?>?v=<?php echo $modern_css_version; ?>" rel="stylesheet" type="text/css">
+
     <!-- CSS Libraries -->
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     
