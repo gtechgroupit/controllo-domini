@@ -199,7 +199,8 @@ $assets_version = defined('APP_VERSION') ? APP_VERSION : '4.0';
     
     <!-- Scripts - PERCORSO SEMPLIFICATO -->
     <script src="/assets/js/main.js?v=<?php echo $assets_version; ?>"></script>
-    
+    <script src="/assets/js/modern-ui.js?v=<?php echo $assets_version; ?>"></script>
+
     <!-- AOS Animation Library -->
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     
