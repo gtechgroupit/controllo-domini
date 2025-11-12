@@ -5,8 +5,8 @@
  * PDO wrapper for PostgreSQL database operations
  * Provides connection pooling, query building, transactions, and logging
  *
- * @package ControlloDomin
- * @version 4.2.0
+ * @package ControlDomini
+ * @version 4.2.1
  */
 
 require_once __DIR__ . '/../config/database.php';

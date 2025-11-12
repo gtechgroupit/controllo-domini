@@ -2,8 +2,8 @@
 /**
  * User Registration Page
  *
- * @package ControlloDomin
- * @version 4.2.0
+ * @package ControlDomini
+ * @version 4.2.1
  */
 
 require_once __DIR__ . '/includes/utilities.php';
@@ -22,29 +22,35 @@ $success = '';
 
 // Handle registration
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = $_POST['email'] ?? '';
-    $password = $_POST['password'] ?? '';
-    $password_confirm = $_POST['password_confirm'] ?? '';
-    $full_name = $_POST['full_name'] ?? '';
-    $company = $_POST['company'] ?? '';
-    $terms = isset($_POST['terms']);
-
-    // Validate
-    if (empty($email) || empty($password) || empty($full_name)) {
-        $error = 'Please fill in all required fields';
-    } elseif ($password !== $password_confirm) {
-        $error = 'Passwords do not match';
-    } elseif (!$terms) {
-        $error = 'You must accept the terms and conditions';
+    // Verify CSRF token
+    $csrf_token = $_POST['csrf_token'] ?? '';
+    if (!verifyCSRFToken($csrf_token)) {
+        $error = 'Invalid request. Please reload the page and try again.';
     } else {
-        $result = $auth->register($email, $password, $full_name, $company);
+        $email = $_POST['email'] ?? '';
+        $password = $_POST['password'] ?? '';
+        $password_confirm = $_POST['password_confirm'] ?? '';
+        $full_name = $_POST['full_name'] ?? '';
+        $company = $_POST['company'] ?? '';
+        $terms = isset($_POST['terms']);
 
-        if ($result['success']) {
-            $success = $result['message'];
+        // Validate
+        if (empty($email) || empty($password) || empty($full_name)) {
+            $error = 'Please fill in all required fields';
+        } elseif ($password !== $password_confirm) {
+            $error = 'Passwords do not match';
+        } elseif (!$terms) {
+            $error = 'You must accept the terms and conditions';
         } else {
-            $error = $result['error'];
+            $result = $auth->register($email, $password, $full_name, $company);
+
+            if ($result['success']) {
+                $success = $result['message'];
+            } else {
+                $error = $result['error'];
+            }
         }
-    }
+    } // Close else for CSRF check
 }
 
 $page_title = 'Register - Controllo Domini';
@@ -80,6 +86,7 @@ include __DIR__ . '/includes/header.php';
             </p>
         <?php else: ?>
             <form method="POST" class="auth-form">
+                <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
                 <div class="form-group">
                     <label for="full_name">Full Name *</label>
                     <input type="text" id="full_name" name="full_name" required

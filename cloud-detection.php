@@ -1,9 +1,9 @@
 <?php
 /**
  * Rilevamento Cloud - Identifica servizi cloud e CDN
- * 
+ *
  * @author G Tech Group
- * @version 4.0
+ * @version 4.2.1
  */
 
 // Definisci ABSPATH se non esiste

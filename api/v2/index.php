@@ -9,10 +9,23 @@
  * @version 4.2.1
  */
 
-// CORS headers
-header('Access-Control-Allow-Origin: *');
+// CORS headers - Whitelist approach for security
+$allowed_origins = [
+    'https://controllodomini.it',
+    'https://www.controllodomini.it',
+    'http://localhost',
+    'http://127.0.0.1'
+];
+
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+if (in_array($origin, $allowed_origins)) {
+    header('Access-Control-Allow-Origin: ' . $origin);
+    header('Access-Control-Allow-Credentials: true');
+}
+
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization, X-API-Key');
+header('Access-Control-Max-Age: 86400'); // 24 hours
 header('Content-Type: application/json');
 
 // Handle preflight requests
@@ -76,8 +89,8 @@ class APIRouter {
      * Authenticate API request
      */
     private function authenticate() {
-        // Check for API key in header
-        $api_key = $_SERVER['HTTP_X_API_KEY'] ?? $_GET['api_key'] ?? null;
+        // Check for API key in header only (not in GET for security)
+        $api_key = $_SERVER['HTTP_X_API_KEY'] ?? null;
 
         if (!$api_key) {
             throw new Exception('API key required', 401);

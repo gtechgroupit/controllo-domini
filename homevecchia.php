@@ -2,9 +2,9 @@
 /**
  * DNS Mapper Tool - Enterprise Edition
  * Advanced DNS analysis with cloud service detection and WHOIS lookup
- * 
+ *
  * @author G Tech Group
- * @version 4.0
+ * @version 4.2.1
  */
 
 // Headers per evitare problemi di cache e sicurezza

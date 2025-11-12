@@ -614,8 +614,17 @@ class Auth {
      */
     private function generateTOTP($secret, $time) {
         $key = base64_decode($secret);
+        if ($key === false || strlen($key) < 16) {
+            throw new Exception('Invalid TOTP secret');
+        }
         $time = pack('N*', 0) . pack('N*', $time);
         $hash = hash_hmac('sha1', $time, $key, true);
+
+        // Ensure hash is long enough before accessing offset
+        if (strlen($hash) < 20) {
+            throw new Exception('Invalid TOTP hash generated');
+        }
+
         $offset = ord($hash[19]) & 0xf;
         $code = (
             ((ord($hash[$offset]) & 0x7f) << 24) |

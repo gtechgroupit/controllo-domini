@@ -17,7 +17,7 @@ if (!defined('RATE_LIMIT_ENABLED')) {
 }
 
 if (!defined('APP_VERSION')) {
-    define('APP_VERSION', '4.0');
+    define('APP_VERSION', '4.2.1');
 }
 
 if (!defined('SEO_TITLE')) {
@@ -51,13 +51,32 @@ function measureDnsResponseTime($domain) {
 
 /**
  * Ottiene tutti gli indirizzi IP per un dominio
- * 
+ *
  * @param string $domain Dominio
+ * @param int $depth Profondità ricorsione (per prevenire infinite loop)
+ * @param array $visited Domini visitati (per prevenire cicli circolari)
  * @return array Lista IP
  */
-function getIpAddresses($domain) {
+function getIpAddresses($domain, $depth = 0, $visited = array()) {
+    // Limite massimo profondità CNAME (RFC suggerisce max 8)
+    $max_depth = 10;
+
+    // Prevenzione infinite loop
+    if ($depth >= $max_depth) {
+        error_log("CNAME depth limit reached for domain: $domain");
+        return array();
+    }
+
+    // Prevenzione cicli circolari
+    $domain_lower = strtolower(trim($domain));
+    if (in_array($domain_lower, $visited)) {
+        error_log("CNAME circular reference detected for domain: $domain");
+        return array();
+    }
+    $visited[] = $domain_lower;
+
     $ips = array();
-    
+
     // Ottieni record A (IPv4)
     $a_records = @dns_get_record($domain, DNS_A);
     if ($a_records) {
@@ -67,7 +86,7 @@ function getIpAddresses($domain) {
             }
         }
     }
-    
+
     // Ottieni record AAAA (IPv6)
     $aaaa_records = @dns_get_record($domain, DNS_AAAA);
     if ($aaaa_records) {
@@ -77,21 +96,21 @@ function getIpAddresses($domain) {
             }
         }
     }
-    
+
     // Se non trova IP diretti, controlla CNAME
     if (empty($ips)) {
         $cname_records = @dns_get_record($domain, DNS_CNAME);
         if ($cname_records) {
             foreach ($cname_records as $record) {
                 if (isset($record['target'])) {
-                    // Ricorsione per seguire CNAME
-                    $target_ips = getIpAddresses($record['target']);
+                    // Ricorsione per seguire CNAME con depth tracking
+                    $target_ips = getIpAddresses($record['target'], $depth + 1, $visited);
                     $ips = array_merge($ips, $target_ips);
                 }
             }
         }
     }
-    
+
     return array_unique($ips);
 }
 

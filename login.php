@@ -2,8 +2,8 @@
 /**
  * User Login Page
  *
- * @package ControlloDomin
- * @version 4.2.0
+ * @package ControlDomini
+ * @version 4.2.1
  */
 
 require_once __DIR__ . '/includes/utilities.php';
@@ -22,7 +22,11 @@ $requires_2fa = false;
 
 // Handle login
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['code'])) {
+    // Verify CSRF token
+    $csrf_token = $_POST['csrf_token'] ?? '';
+    if (!verifyCSRFToken($csrf_token)) {
+        $error = 'Invalid request. Please reload the page and try again.';
+    } elseif (isset($_POST['code'])) {
         // 2FA verification
         $result = $auth->verify2FA($_POST['code']);
 
@@ -80,6 +84,7 @@ include __DIR__ . '/includes/header.php';
         <?php if ($requires_2fa): ?>
             <!-- 2FA Form -->
             <form method="POST" class="auth-form">
+                <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
                 <div class="form-group">
                     <label for="code">Authentication Code</label>
                     <input type="text" id="code" name="code" required
@@ -102,6 +107,7 @@ include __DIR__ . '/includes/header.php';
         <?php else: ?>
             <!-- Login Form -->
             <form method="POST" class="auth-form">
+                <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
                 <div class="form-group">
                     <label for="email">Email Address</label>
                     <input type="email" id="email" name="email" required
