@@ -8,6 +8,7 @@
 
 require_once __DIR__ . '/includes/utilities.php';
 require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/includes/validation.php';
 
 $auth = getAuth();
 
@@ -46,15 +47,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($email) || empty($password)) {
             $error = 'Please enter your email and password';
         } else {
-            $result = $auth->login($email, $password, $remember);
-
-            if ($result['success']) {
-                header('Location: /dashboard');
-                exit;
-            } elseif (isset($result['requires_2fa']) && $result['requires_2fa']) {
-                $requires_2fa = true;
+            // Validate and sanitize email
+            $email_check = validateEmail($email, ['check_mx' => false]);
+            if (!$email_check['valid']) {
+                $error = $email_check['error'];
             } else {
-                $error = $result['error'];
+                $result = $auth->login($email_check['sanitized'], $password, $remember);
+
+                if ($result['success']) {
+                    header('Location: /dashboard');
+                    exit;
+                } elseif (isset($result['requires_2fa']) && $result['requires_2fa']) {
+                    $requires_2fa = true;
+                } else {
+                    $error = $result['error'];
+                }
             }
         }
     }
@@ -83,21 +90,31 @@ include __DIR__ . '/includes/header.php';
 
         <?php if ($requires_2fa): ?>
             <!-- 2FA Form -->
-            <form method="POST" class="auth-form">
+            <form method="POST" class="auth-form" id="twoFactorForm">
                 <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
                 <div class="form-group">
                     <label for="code">Authentication Code</label>
                     <input type="text" id="code" name="code" required
                            pattern="[0-9]{6}" maxlength="6"
                            placeholder="000000" autocomplete="one-time-code"
-                           autofocus style="text-align: center; font-size: 24px; letter-spacing: 0.5em;">
-                    <small class="form-hint">
+                           autofocus style="text-align: center; font-size: 24px; letter-spacing: 0.5em;"
+                           aria-label="Six digit authentication code"
+                           aria-required="true"
+                           aria-describedby="code_hint">
+                    <small class="form-hint" id="code_hint">
                         Enter the 6-digit code from your authenticator app
                     </small>
+                    <div class="field-error" id="code_error" role="alert" aria-live="polite"></div>
                 </div>
 
-                <button type="submit" class="btn btn-primary btn-block">
-                    Verify Code
+                <button type="submit" class="btn btn-primary btn-block" id="verify2FABtn">
+                    <span class="btn-text">Verify Code</span>
+                    <span class="btn-spinner" style="display: none;">
+                        <svg class="spinner" viewBox="0 0 24 24">
+                            <circle class="spinner-circle" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+                        </svg>
+                        Verifying...
+                    </span>
                 </button>
 
                 <div class="text-center mt-3">
@@ -106,13 +123,17 @@ include __DIR__ . '/includes/header.php';
             </form>
         <?php else: ?>
             <!-- Login Form -->
-            <form method="POST" class="auth-form">
+            <form method="POST" class="auth-form" id="loginForm">
                 <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
                 <div class="form-group">
                     <label for="email">Email Address</label>
                     <input type="email" id="email" name="email" required
                            value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>"
-                           placeholder="john@example.com" autofocus>
+                           placeholder="john@example.com" autofocus
+                           maxlength="254"
+                           aria-label="Email address"
+                           aria-required="true">
+                    <div class="field-error" id="email_error" role="alert" aria-live="polite"></div>
                 </div>
 
                 <div class="form-group">
@@ -120,19 +141,37 @@ include __DIR__ . '/includes/header.php';
                         Password
                         <a href="/forgot-password" class="float-right text-link">Forgot password?</a>
                     </label>
-                    <input type="password" id="password" name="password" required
-                           placeholder="Enter your password">
+                    <div class="password-wrapper">
+                        <input type="password" id="password" name="password" required
+                               placeholder="Enter your password"
+                               aria-label="Password"
+                               aria-required="true">
+                        <button type="button" class="toggle-password" aria-label="Toggle password visibility">
+                            <svg class="eye-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="field-error" id="password_error" role="alert" aria-live="polite"></div>
                 </div>
 
                 <div class="form-group checkbox-group">
                     <label>
-                        <input type="checkbox" name="remember">
+                        <input type="checkbox" name="remember"
+                               aria-label="Remember me for 30 days">
                         Remember me for 30 days
                     </label>
                 </div>
 
-                <button type="submit" class="btn btn-primary btn-block">
-                    Log In
+                <button type="submit" class="btn btn-primary btn-block" id="loginBtn">
+                    <span class="btn-text">Log In</span>
+                    <span class="btn-spinner" style="display: none;">
+                        <svg class="spinner" viewBox="0 0 24 24">
+                            <circle class="spinner-circle" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+                        </svg>
+                        Logging in...
+                    </span>
                 </button>
             </form>
 
@@ -512,6 +551,81 @@ include __DIR__ . '/includes/header.php';
     }
 }
 
+/* Enhanced form styles */
+.password-wrapper {
+    position: relative;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    color: var(--text-secondary, #666);
+}
+
+.toggle-password:hover {
+    color: var(--primary-color, #007bff);
+}
+
+.eye-icon {
+    width: 20px;
+    height: 20px;
+}
+
+.field-error {
+    color: #dc3545;
+    font-size: 13px;
+    margin-top: 6px;
+    display: none;
+}
+
+.field-error.show {
+    display: block;
+}
+
+.form-group input.error {
+    border-color: #dc3545;
+}
+
+.btn-spinner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.spinner {
+    width: 16px;
+    height: 16px;
+    animation: spin 1s linear infinite;
+}
+
+.spinner-circle {
+    stroke-dasharray: 60;
+    stroke-dashoffset: 60;
+    animation: spinCircle 1.5s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes spinCircle {
+    0% { stroke-dashoffset: 60; }
+    50% { stroke-dashoffset: 15; }
+    100% { stroke-dashoffset: 60; }
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 @media (max-width: 768px) {
     .info-stats {
         grid-template-columns: 1fr;
@@ -526,5 +640,128 @@ include __DIR__ . '/includes/header.php';
     }
 }
 </style>
+
+<script>
+// Enhanced login form with validation and loading states
+(function() {
+    'use strict';
+
+    // Login form handling
+    const loginForm = document.getElementById('loginForm');
+    if (loginForm) {
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const loginBtn = document.getElementById('loginBtn');
+
+        function validateEmail(email) {
+            const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return re.test(email);
+        }
+
+        function showError(inputId, message) {
+            const input = document.getElementById(inputId);
+            const errorDiv = document.getElementById(inputId + '_error');
+            if (input && errorDiv) {
+                input.classList.add('error');
+                errorDiv.textContent = message;
+                errorDiv.classList.add('show');
+            }
+        }
+
+        function clearError(inputId) {
+            const input = document.getElementById(inputId);
+            const errorDiv = document.getElementById(inputId + '_error');
+            if (input && errorDiv) {
+                input.classList.remove('error');
+                errorDiv.classList.remove('show');
+            }
+        }
+
+        // Real-time validation
+        if (emailInput) {
+            emailInput.addEventListener('blur', function() {
+                if (this.value && !validateEmail(this.value)) {
+                    showError('email', 'Please enter a valid email address');
+                } else if (this.value) {
+                    clearError('email');
+                }
+            });
+        }
+
+        // Password visibility toggle
+        const toggleBtn = loginForm.querySelector('.toggle-password');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', function() {
+                const input = this.previousElementSibling;
+                const type = input.type === 'password' ? 'text' : 'password';
+                input.type = type;
+            });
+        }
+
+        // Form submission
+        loginForm.addEventListener('submit', function(e) {
+            let hasErrors = false;
+
+            if (!emailInput.value.trim() || !validateEmail(emailInput.value)) {
+                showError('email', 'Please enter a valid email address');
+                hasErrors = true;
+            }
+
+            if (!passwordInput.value) {
+                showError('password', 'Please enter your password');
+                hasErrors = true;
+            }
+
+            if (hasErrors) {
+                e.preventDefault();
+                return false;
+            }
+
+            // Show loading state
+            loginBtn.disabled = true;
+            loginBtn.querySelector('.btn-text').style.display = 'none';
+            loginBtn.querySelector('.btn-spinner').style.display = 'flex';
+        });
+    }
+
+    // 2FA form handling
+    const twoFactorForm = document.getElementById('twoFactorForm');
+    if (twoFactorForm) {
+        const codeInput = document.getElementById('code');
+        const verifyBtn = document.getElementById('verify2FABtn');
+
+        // Auto-submit when 6 digits entered
+        if (codeInput) {
+            codeInput.addEventListener('input', function() {
+                // Only allow numbers
+                this.value = this.value.replace(/[^0-9]/g, '');
+
+                // Auto-submit when 6 digits
+                if (this.value.length === 6) {
+                    twoFactorForm.submit();
+                }
+            });
+        }
+
+        // Form submission
+        twoFactorForm.addEventListener('submit', function(e) {
+            if (codeInput.value.length !== 6) {
+                e.preventDefault();
+                const errorDiv = document.getElementById('code_error');
+                if (errorDiv) {
+                    errorDiv.textContent = 'Please enter a 6-digit code';
+                    errorDiv.classList.add('show');
+                }
+                return false;
+            }
+
+            // Show loading state
+            verifyBtn.disabled = true;
+            verifyBtn.querySelector('.btn-text').style.display = 'none';
+            verifyBtn.querySelector('.btn-spinner').style.display = 'flex';
+        });
+    }
+})();
+</script>
 
 <?php include __DIR__ . '/includes/footer.php'; ?>

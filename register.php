@@ -8,6 +8,7 @@
 
 require_once __DIR__ . '/includes/utilities.php';
 require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/includes/validation.php';
 
 $auth = getAuth();
 
@@ -34,20 +35,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $company = $_POST['company'] ?? '';
         $terms = isset($_POST['terms']);
 
-        // Validate
+        // Enhanced validation with security checks
         if (empty($email) || empty($password) || empty($full_name)) {
             $error = 'Please fill in all required fields';
-        } elseif ($password !== $password_confirm) {
-            $error = 'Passwords do not match';
-        } elseif (!$terms) {
-            $error = 'You must accept the terms and conditions';
         } else {
-            $result = $auth->register($email, $password, $full_name, $company);
-
-            if ($result['success']) {
-                $success = $result['message'];
+            // Validate full name length
+            $name_check = validateLength($full_name, 2, 100, 'Full name');
+            if (!$name_check['valid']) {
+                $error = $name_check['error'];
             } else {
-                $error = $result['error'];
+                // Validate email with enhanced checks
+                $email_check = validateEmail($email, [
+                    'check_mx' => false, // Skip MX check for better performance
+                    'allow_disposable' => true,
+                    'max_length' => 254
+                ]);
+
+                if (!$email_check['valid']) {
+                    $error = $email_check['error'];
+                } elseif ($password !== $password_confirm) {
+                    $error = 'Passwords do not match';
+                } else {
+                    // Validate password strength
+                    $password_check = validatePassword($password, [
+                        'min_length' => 8,
+                        'max_length' => 128,
+                        'require_uppercase' => true,
+                        'require_lowercase' => true,
+                        'require_number' => true,
+                        'require_special' => true,
+                        'check_common' => true
+                    ]);
+
+                    if (!$password_check['valid']) {
+                        $error = $password_check['error'];
+                    } elseif (!$terms) {
+                        $error = 'You must accept the terms and conditions';
+                    } else {
+                        // All validation passed, proceed with registration
+                        $result = $auth->register($email_check['sanitized'], $password, $full_name, $company);
+
+                        if ($result['success']) {
+                            $success = $result['message'];
+                        } else {
+                            $error = $result['error'];
+                        }
+                    }
+                }
             }
         }
     } // Close else for CSRF check
@@ -85,54 +119,98 @@ include __DIR__ . '/includes/header.php';
                 <a href="/login" class="btn btn-primary">Go to Login</a>
             </p>
         <?php else: ?>
-            <form method="POST" class="auth-form">
+            <form method="POST" class="auth-form" id="registerForm">
                 <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
                 <div class="form-group">
                     <label for="full_name">Full Name *</label>
                     <input type="text" id="full_name" name="full_name" required
                            value="<?php echo htmlspecialchars($_POST['full_name'] ?? ''); ?>"
-                           placeholder="John Doe">
+                           placeholder="John Doe"
+                           minlength="2" maxlength="100"
+                           aria-label="Full name"
+                           aria-required="true">
+                    <div class="field-error" id="full_name_error" role="alert" aria-live="polite"></div>
                 </div>
 
                 <div class="form-group">
                     <label for="email">Email Address *</label>
                     <input type="email" id="email" name="email" required
                            value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>"
-                           placeholder="john@example.com">
+                           placeholder="john@example.com"
+                           maxlength="254"
+                           aria-label="Email address"
+                           aria-required="true"
+                           aria-describedby="email_hint">
+                    <small class="form-hint" id="email_hint">We'll never share your email</small>
+                    <div class="field-error" id="email_error" role="alert" aria-live="polite"></div>
                 </div>
 
                 <div class="form-group">
                     <label for="company">Company (Optional)</label>
                     <input type="text" id="company" name="company"
                            value="<?php echo htmlspecialchars($_POST['company'] ?? ''); ?>"
-                           placeholder="Your Company">
+                           placeholder="Your Company"
+                           maxlength="100"
+                           aria-label="Company name">
                 </div>
 
                 <div class="form-group">
                     <label for="password">Password *</label>
-                    <input type="password" id="password" name="password" required
-                           placeholder="Min. 8 characters">
-                    <small class="form-hint">
+                    <div class="password-wrapper">
+                        <input type="password" id="password" name="password" required
+                               placeholder="Min. 8 characters"
+                               minlength="8" maxlength="128"
+                               aria-label="Password"
+                               aria-required="true"
+                               aria-describedby="password_strength password_hint">
+                        <button type="button" class="toggle-password" aria-label="Toggle password visibility">
+                            <svg class="eye-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="password-strength" id="password_strength" role="status" aria-live="polite">
+                        <div class="strength-meter">
+                            <div class="strength-meter-fill" data-strength="0"></div>
+                        </div>
+                        <span class="strength-text">Enter password</span>
+                    </div>
+                    <small class="form-hint" id="password_hint">
                         Must contain uppercase, lowercase, number, and special character
                     </small>
+                    <div class="field-error" id="password_error" role="alert" aria-live="polite"></div>
                 </div>
 
                 <div class="form-group">
                     <label for="password_confirm">Confirm Password *</label>
                     <input type="password" id="password_confirm" name="password_confirm" required
-                           placeholder="Confirm your password">
+                           placeholder="Confirm your password"
+                           minlength="8" maxlength="128"
+                           aria-label="Confirm password"
+                           aria-required="true">
+                    <div class="field-error" id="password_confirm_error" role="alert" aria-live="polite"></div>
                 </div>
 
                 <div class="form-group checkbox-group">
                     <label>
-                        <input type="checkbox" name="terms" required>
+                        <input type="checkbox" name="terms" required
+                               aria-label="Accept terms and conditions"
+                               aria-required="true">
                         I accept the <a href="/terms" target="_blank">Terms of Service</a> and
                         <a href="/privacy" target="_blank">Privacy Policy</a>
                     </label>
+                    <div class="field-error" id="terms_error" role="alert" aria-live="polite"></div>
                 </div>
 
-                <button type="submit" class="btn btn-primary btn-block">
-                    Create Account
+                <button type="submit" class="btn btn-primary btn-block" id="submitBtn">
+                    <span class="btn-text">Create Account</span>
+                    <span class="btn-spinner" style="display: none;">
+                        <svg class="spinner" viewBox="0 0 24 24">
+                            <circle class="spinner-circle" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+                        </svg>
+                        Creating...
+                    </span>
                 </button>
             </form>
 
@@ -456,6 +534,124 @@ include __DIR__ . '/includes/header.php';
     font-size: 14px;
 }
 
+/* Password strength indicator */
+.password-wrapper {
+    position: relative;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    color: var(--text-secondary, #666);
+}
+
+.toggle-password:hover {
+    color: var(--primary-color, #007bff);
+}
+
+.eye-icon {
+    width: 20px;
+    height: 20px;
+}
+
+.password-strength {
+    margin-top: 8px;
+}
+
+.strength-meter {
+    height: 4px;
+    background: var(--border-color, #e0e0e0);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+
+.strength-meter-fill {
+    height: 100%;
+    width: 0%;
+    transition: width 0.3s ease, background-color 0.3s ease;
+    border-radius: 2px;
+}
+
+.strength-meter-fill[data-strength="0"] { width: 0%; background: transparent; }
+.strength-meter-fill[data-strength="1"] { width: 20%; background: #dc3545; }
+.strength-meter-fill[data-strength="2"] { width: 40%; background: #fd7e14; }
+.strength-meter-fill[data-strength="3"] { width: 60%; background: #ffc107; }
+.strength-meter-fill[data-strength="4"] { width: 80%; background: #20c997; }
+.strength-meter-fill[data-strength="5"] { width: 100%; background: #28a745; }
+
+.strength-text {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.strength-text.weak { color: #dc3545; }
+.strength-text.fair { color: #fd7e14; }
+.strength-text.good { color: #ffc107; }
+.strength-text.strong { color: #20c997; }
+.strength-text.very-strong { color: #28a745; }
+
+/* Field errors */
+.field-error {
+    color: #dc3545;
+    font-size: 13px;
+    margin-top: 6px;
+    display: none;
+}
+
+.field-error.show {
+    display: block;
+}
+
+.form-group input.error {
+    border-color: #dc3545;
+}
+
+.form-group input.success {
+    border-color: #28a745;
+}
+
+/* Loading spinner */
+.btn-spinner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.spinner {
+    width: 16px;
+    height: 16px;
+    animation: spin 1s linear infinite;
+}
+
+.spinner-circle {
+    stroke-dasharray: 60;
+    stroke-dashoffset: 60;
+    animation: spinCircle 1.5s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes spinCircle {
+    0% { stroke-dashoffset: 60; }
+    50% { stroke-dashoffset: 15; }
+    100% { stroke-dashoffset: 60; }
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 @media (max-width: 968px) {
     .auth-container {
         grid-template-columns: 1fr;
@@ -463,5 +659,187 @@ include __DIR__ . '/includes/header.php';
     }
 }
 </style>
+
+<script>
+// Enhanced form validation with real-time feedback
+(function() {
+    'use strict';
+
+    const form = document.getElementById('registerForm');
+    if (!form) return;
+
+    const passwordInput = document.getElementById('password');
+    const passwordConfirmInput = document.getElementById('password_confirm');
+    const emailInput = document.getElementById('email');
+    const fullNameInput = document.getElementById('full_name');
+    const submitBtn = document.getElementById('submitBtn');
+
+    // Password strength calculation
+    function calculatePasswordStrength(password) {
+        let strength = 0;
+        const feedback = [];
+
+        if (password.length === 0) return { strength: 0, text: 'Enter password', class: '' };
+        if (password.length < 8) return { strength: 1, text: 'Too short', class: 'weak' };
+
+        // Length
+        if (password.length >= 8) strength++;
+        if (password.length >= 12) strength++;
+
+        // Character types
+        if (/[a-z]/.test(password)) strength++;
+        if (/[A-Z]/.test(password)) strength++;
+        if (/[0-9]/.test(password)) strength++;
+        if (/[^A-Za-z0-9]/.test(password)) strength++;
+
+        // Common passwords check
+        const common = ['password', '12345678', 'qwerty', 'admin', 'letmein', 'welcome'];
+        if (common.some(c => password.toLowerCase().includes(c))) {
+            return { strength: 1, text: 'Too common', class: 'weak' };
+        }
+
+        // Normalize strength to 1-5
+        const normalizedStrength = Math.min(5, Math.max(1, Math.ceil(strength / 1.2)));
+
+        const strengthMap = {
+            1: { text: 'Very weak', class: 'weak' },
+            2: { text: 'Weak', class: 'fair' },
+            3: { text: 'Fair', class: 'good' },
+            4: { text: 'Strong', class: 'strong' },
+            5: { text: 'Very strong', class: 'very-strong' }
+        };
+
+        return { strength: normalizedStrength, ...strengthMap[normalizedStrength] };
+    }
+
+    // Update password strength meter
+    function updatePasswordStrength() {
+        const password = passwordInput.value;
+        const result = calculatePasswordStrength(password);
+        const meter = document.querySelector('.strength-meter-fill');
+        const text = document.querySelector('.strength-text');
+
+        meter.setAttribute('data-strength', result.strength);
+        text.textContent = result.text;
+        text.className = 'strength-text ' + result.class;
+    }
+
+    // Validate email format
+    function validateEmail(email) {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
+    }
+
+    // Show error
+    function showError(inputId, message) {
+        const input = document.getElementById(inputId);
+        const errorDiv = document.getElementById(inputId + '_error');
+
+        input.classList.add('error');
+        input.classList.remove('success');
+        errorDiv.textContent = message;
+        errorDiv.classList.add('show');
+    }
+
+    // Clear error
+    function clearError(inputId) {
+        const input = document.getElementById(inputId);
+        const errorDiv = document.getElementById(inputId + '_error');
+
+        input.classList.remove('error');
+        if (input.value.trim()) {
+            input.classList.add('success');
+        }
+        errorDiv.classList.remove('show');
+    }
+
+    // Toggle password visibility
+    document.querySelectorAll('.toggle-password').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const input = this.previousElementSibling;
+            const type = input.type === 'password' ? 'text' : 'password';
+            input.type = type;
+        });
+    });
+
+    // Real-time validation
+    if (passwordInput) {
+        passwordInput.addEventListener('input', updatePasswordStrength);
+        passwordInput.addEventListener('blur', function() {
+            if (this.value.length > 0 && this.value.length < 8) {
+                showError('password', 'Password must be at least 8 characters');
+            } else if (this.value.length > 0) {
+                clearError('password');
+            }
+        });
+    }
+
+    if (passwordConfirmInput) {
+        passwordConfirmInput.addEventListener('input', function() {
+            if (this.value && this.value !== passwordInput.value) {
+                showError('password_confirm', 'Passwords do not match');
+            } else if (this.value) {
+                clearError('password_confirm');
+            }
+        });
+    }
+
+    if (emailInput) {
+        emailInput.addEventListener('blur', function() {
+            if (this.value && !validateEmail(this.value)) {
+                showError('email', 'Please enter a valid email address');
+            } else if (this.value) {
+                clearError('email');
+            }
+        });
+    }
+
+    if (fullNameInput) {
+        fullNameInput.addEventListener('blur', function() {
+            if (this.value.length > 0 && this.value.length < 2) {
+                showError('full_name', 'Name must be at least 2 characters');
+            } else if (this.value) {
+                clearError('full_name');
+            }
+        });
+    }
+
+    // Form submission with loading state
+    form.addEventListener('submit', function(e) {
+        let hasErrors = false;
+
+        // Validate all fields
+        if (!fullNameInput.value.trim() || fullNameInput.value.length < 2) {
+            showError('full_name', 'Please enter your full name (min 2 characters)');
+            hasErrors = true;
+        }
+
+        if (!emailInput.value.trim() || !validateEmail(emailInput.value)) {
+            showError('email', 'Please enter a valid email address');
+            hasErrors = true;
+        }
+
+        if (!passwordInput.value || passwordInput.value.length < 8) {
+            showError('password', 'Password must be at least 8 characters');
+            hasErrors = true;
+        }
+
+        if (passwordInput.value !== passwordConfirmInput.value) {
+            showError('password_confirm', 'Passwords do not match');
+            hasErrors = true;
+        }
+
+        if (hasErrors) {
+            e.preventDefault();
+            return false;
+        }
+
+        // Show loading state
+        submitBtn.disabled = true;
+        submitBtn.querySelector('.btn-text').style.display = 'none';
+        submitBtn.querySelector('.btn-spinner').style.display = 'flex';
+    });
+})();
+</script>
 
 <?php include __DIR__ . '/includes/footer.php'; ?>
