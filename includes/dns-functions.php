@@ -17,12 +17,13 @@
 function getAllDnsRecords($domain) {
     $results = array();
     $errors = array();
+    $seen_hashes = array(); // Track visti per deduplicazione O(1)
     $stats = array(
         'total_records' => 0,
         'record_types' => array(),
         'analysis_time' => microtime(true)
     );
-    
+
     // Lista dei domini da controllare
     $domains_to_check = array($domain);
     
@@ -50,8 +51,8 @@ function getAllDnsRecords($domain) {
                             $stats['record_types'][] = $type;
                         }
                         
-                        // Evita duplicati
-                        if (!isDuplicateRecord($results[$type], $record)) {
+                        // Evita duplicati con hash O(1)
+                        if (!isDuplicateRecord($seen_hashes, $record)) {
                             $results[$type][] = $record;
                             $stats['total_records']++;
                         }
@@ -77,7 +78,8 @@ function getAllDnsRecords($domain) {
                     }
                     
                     foreach ($records as $record) {
-                        if (!isDuplicateRecord($results[$type], $record)) {
+                        // Evita duplicati con hash O(1)
+                        if (!isDuplicateRecord($seen_hashes, $record)) {
                             $results[$type][] = $record;
                             $stats['total_records']++;
                         }
@@ -107,7 +109,8 @@ function getAllDnsRecords($domain) {
                             }
                         }
                         
-                        if (!isDuplicateRecord($results[$type], $record)) {
+                        // Evita duplicati con hash O(1)
+                        if (!isDuplicateRecord($seen_hashes, $record)) {
                             $results[$type][] = $record;
                             $stats['total_records']++;
                         }
@@ -133,18 +136,24 @@ function getAllDnsRecords($domain) {
 }
 
 /**
- * Verifica se un record è duplicato
- * 
- * @param array $existing Record esistenti
+ * Verifica se un record è duplicato usando hash O(1)
+ * Ottimizzato per performance con hashing invece di json_encode loop
+ *
+ * @param array $seen_hashes Array di hash già visti (passato per reference)
  * @param array $new Nuovo record
  * @return bool True se duplicato
  */
-function isDuplicateRecord($existing, $new) {
-    foreach ($existing as $record) {
-        if (json_encode($record) == json_encode($new)) {
-            return true;
-        }
+function isDuplicateRecord(&$seen_hashes, $new) {
+    // Crea hash univoco del record (molto più veloce di json_encode loop)
+    $record_hash = md5(json_encode($new));
+
+    // Lookup O(1) invece di loop O(n)
+    if (isset($seen_hashes[$record_hash])) {
+        return true;
     }
+
+    // Marca come visto
+    $seen_hashes[$record_hash] = true;
     return false;
 }
 

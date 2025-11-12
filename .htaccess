@@ -1,3 +1,10 @@
+# .htaccess - Controllo Domini v4.2.1
+# Performance & Security Optimizations
+
+# =========================
+# URL REWRITING
+# =========================
+
 # Enable Rewrite Engine
 RewriteEngine On
 
@@ -11,13 +18,82 @@ RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_FILENAME}.php -f
 RewriteRule ^([^/]+)/?$ $1.php [L]
 
-# Security headers
+# =========================
+# GZIP COMPRESSION (-70% size)
+# =========================
+
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css text/javascript text/xml text/plain
+    AddOutputFilterByType DEFLATE application/javascript application/x-javascript application/json application/xml
+    AddOutputFilterByType DEFLATE image/svg+xml font/ttf font/otf font/woff font/woff2
+</IfModule>
+
+# =========================
+# BROWSER CACHING (1 year)
+# =========================
+
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresDefault "access plus 1 month"
+
+    # CSS/JS - 1 year
+    ExpiresByType text/css "access plus 1 year"
+    ExpiresByType application/javascript "access plus 1 year"
+
+    # Images - 1 year
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType image/webp "access plus 1 year"
+
+    # Fonts - 1 year
+    ExpiresByType font/woff "access plus 1 year"
+    ExpiresByType font/woff2 "access plus 1 year"
+    ExpiresByType font/ttf "access plus 1 year"
+
+    # HTML - no cache
+    ExpiresByType text/html "access plus 0 seconds"
+</IfModule>
+
+<IfModule mod_headers.c>
+    # Cache static assets
+    <FilesMatch "\.(js|css|jpg|jpeg|png|gif|svg|webp|woff|woff2|ttf)$">
+        Header set Cache-Control "max-age=31536000, public, immutable"
+    </FilesMatch>
+
+    # No cache for HTML/PHP
+    <FilesMatch "\.(html|htm|php)$">
+        Header set Cache-Control "max-age=0, must-revalidate"
+    </FilesMatch>
+</IfModule>
+
+# =========================
+# SECURITY HEADERS
+# =========================
+
 <IfModule mod_headers.c>
     Header set X-Content-Type-Options "nosniff"
     Header set X-Frame-Options "SAMEORIGIN"
     Header set X-XSS-Protection "1; mode=block"
     Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header set Permissions-Policy "geolocation=(), microphone=(), camera=()"
 </IfModule>
+
+# =========================
+# FILE PROTECTION
+# =========================
+
+# Prevent directory browsing
+Options -Indexes
+
+# Protect sensitive files
+<FilesMatch "^\.(git|env|htaccess|htpasswd)">
+    Require all denied
+</FilesMatch>
+
+# Remove ETags
+FileETag None
 
 # Prevent directory listing
 Options -Indexes

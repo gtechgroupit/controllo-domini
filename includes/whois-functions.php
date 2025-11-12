@@ -148,10 +148,26 @@ function getWhoisViaSocket($domain) {
     }
     
     fputs($fp, $query);
-    
+
     $out = '';
-    while (!feof($fp)) {
-        $out .= fgets($fp);
+    $max_lines = 1000; // Limite sicurezza contro infinite loop
+    $line_count = 0;
+    $start_time = microtime(true);
+    $max_time = 30; // Timeout 30 secondi
+
+    while (!feof($fp) && $line_count < $max_lines) {
+        // Check timeout
+        if ((microtime(true) - $start_time) > $max_time) {
+            logDebug("WHOIS timeout raggiunto dopo {$max_time}s");
+            break;
+        }
+
+        $line = fgets($fp, 4096); // Limite byte per linea
+        if ($line === false) {
+            break;
+        }
+        $out .= $line;
+        $line_count++;
     }
     fclose($fp);
     
