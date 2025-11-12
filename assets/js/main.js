@@ -48,6 +48,7 @@
     // State management
     const state = {
         isLoading: false,
+        listenersInitialized: false,
         currentDomain: '',
         analysisResults: null,
         charts: {},
@@ -129,6 +130,12 @@
      * Setup event listeners
      */
     function setupEventListeners() {
+        // Prevent duplicate event listeners
+        if (state.listenersInitialized) {
+            return;
+        }
+        state.listenersInitialized = true;
+
         // Navbar scroll effect
         window.addEventListener('scroll', throttle(handleScroll, 10));
         
@@ -1706,7 +1713,7 @@
     
     // Esponi API pubblica
     window.ControlDomini = {
-        version: '4.0',
+        version: '4.2.1',
         state,
         config,
         trackEvent,

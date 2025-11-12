@@ -69,6 +69,6 @@ if (!defined('APP_NAME')) {
 }
 
 if (!defined('APP_VERSION')) {
-    define('APP_VERSION', '4.0');
+    define('APP_VERSION', '4.2.1');
 }
 ?>

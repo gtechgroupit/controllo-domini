@@ -36,20 +36,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Validate
         if (empty($email) || empty($password) || empty($full_name)) {
-        $error = 'Please fill in all required fields';
-    } elseif ($password !== $password_confirm) {
-        $error = 'Passwords do not match';
-    } elseif (!$terms) {
-        $error = 'You must accept the terms and conditions';
-    } else {
-        $result = $auth->register($email, $password, $full_name, $company);
-
-        if ($result['success']) {
-            $success = $result['message'];
+            $error = 'Please fill in all required fields';
+        } elseif ($password !== $password_confirm) {
+            $error = 'Passwords do not match';
+        } elseif (!$terms) {
+            $error = 'You must accept the terms and conditions';
         } else {
-            $error = $result['error'];
+            $result = $auth->register($email, $password, $full_name, $company);
+
+            if ($result['success']) {
+                $success = $result['message'];
+            } else {
+                $error = $result['error'];
+            }
         }
-    }
     } // Close else for CSRF check
 }
 
