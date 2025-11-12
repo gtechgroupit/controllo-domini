@@ -17,7 +17,7 @@ if (!defined('RATE_LIMIT_ENABLED')) {
 }
 
 if (!defined('APP_VERSION')) {
-    define('APP_VERSION', '4.0');
+    define('APP_VERSION', '4.2.1');
 }
 
 if (!defined('SEO_TITLE')) {

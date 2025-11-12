@@ -2,15 +2,15 @@
 /**
  * Configurazione Controllo Domini
  * Sistema professionale per l'analisi DNS e WHOIS
- * 
+ *
  * @author G Tech Group
- * @version 4.0
+ * @version 4.2.1
  * @website https://controllodomini.it
  */
 
 // Configurazione base
 define('APP_NAME', 'Controllo Domini');
-define('APP_VERSION', '4.0');
+define('APP_VERSION', '4.2.1');
 define('APP_AUTHOR', 'G Tech Group');
 define('APP_URL', 'https://controllodomini.it');
 define('APP_DESCRIPTION', 'Strumento professionale gratuito per l\'analisi completa di domini, DNS, WHOIS e blacklist. Verifica la configurazione DNS, identifica servizi cloud e controlla la reputazione del dominio.');
@@ -76,6 +76,23 @@ header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: SAMEORIGIN');
 header('X-XSS-Protection: 1; mode=block');
 header('Referrer-Policy: strict-origin-when-cross-origin');
+
+// Content Security Policy
+$csp = "default-src 'self'; " .
+       "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://www.googletagmanager.com https://www.google-analytics.com; " .
+       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; " .
+       "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; " .
+       "img-src 'self' data: https:; " .
+       "connect-src 'self' https://www.google-analytics.com; " .
+       "frame-ancestors 'self'; " .
+       "base-uri 'self'; " .
+       "form-action 'self'";
+header("Content-Security-Policy: " . $csp);
+
+// HTTP Strict Transport Security (HSTS)
+if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
+    header('Strict-Transport-Security: max-age=31536000; includeSubDomains; preload');
+}
 
 // Timezone
 date_default_timezone_set('Europe/Rome');
@@ -165,8 +182,8 @@ define('RATE_LIMIT_ENABLED', false);
 define('RATE_LIMIT_REQUESTS', 100); // richieste per IP
 define('RATE_LIMIT_WINDOW', 3600); // finestra temporale in secondi
 
-// Debug mode
-define('DEBUG_MODE', isset($_GET['debug']) || isset($_POST['debug']));
+// Debug mode - solo per ambiente di sviluppo
+define('DEBUG_MODE', false); // Cambiare manualmente a true solo in sviluppo
 
 // Analytics (Google Analytics, Matomo, etc.)
 define('ANALYTICS_ENABLED', true);

@@ -5,7 +5,7 @@
  * 
  * @package ControlDomini
  * @author G Tech Group
- * @version 4.1
+ * @version 4.2.1
  * @website https://controllodomini.it
  */
 
@@ -88,9 +88,18 @@ $analysis_completed = false;
 $analysis_duration = 0;
 
 // Gestione del form POST e parametri GET per deep linking
-if (($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) || 
+if (($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) ||
     (isset($_GET['domain']) && isset($_GET['analyze']))) {
-    
+
+    // Verifica CSRF token per richieste POST
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $csrf_token = $_POST['csrf_token'] ?? '';
+        if (!verifyCSRFToken($csrf_token)) {
+            $error_message = 'Richiesta non valida. Ricarica la pagina e riprova.';
+            goto skip_analysis;
+        }
+    }
+
     $domain = trim($_SERVER['REQUEST_METHOD'] === 'POST' ? $_POST['domain'] : $_GET['domain']);
     $scan_ports = isset($_POST['scan_ports']) || isset($_GET['scan_ports']);
     
@@ -207,6 +216,8 @@ if (($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['domain'])) ||
             }
         }
     }
+
+    skip_analysis: // Label for CSRF failure skip
 }
 
 // Impostazioni per la pagina
@@ -228,6 +239,9 @@ require_once ABSPATH . 'templates/header.php';
     <div class="container">
         <div class="form-card" data-aos="zoom-in">
             <form method="POST" action="" id="domainForm" class="domain-form">
+                <!-- CSRF Protection -->
+                <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
+
                 <div class="form-group">
                     <label class="form-label" for="domain">
                         Inserisci il dominio da analizzare

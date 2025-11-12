@@ -1,9 +1,9 @@
 <?php
 /**
  * Guida DNS - Documentazione completa sui record DNS
- * 
+ *
  * @author G Tech Group
- * @version 4.0
+ * @version 4.2.1
  */
 
 // Definisci ABSPATH se non esiste

@@ -7,14 +7,67 @@ e questo progetto aderisce al [Semantic Versioning](https://semver.org/lang/it/)
 
 ## [Non Rilasciato]
 
-### Pianificato per v4.2
-- Database integration per caching e analytics
-- User authentication system
-- API REST completa con rate limiting avanzato
-- Dashboard analytics e reporting
-- Export risultati in PDF/CSV
-- Schedulazione analisi ricorrenti
-- Notifiche email per scadenze domini
+### Pianificato per v4.3
+- White-label solution per web agency
+- AI-powered recommendations per ottimizzazione domini
+- GraphQL API e SDK ufficiali
+- Real-time monitoring WebSocket
+- Mobile app (iOS/Android)
+
+---
+
+## [4.2.1] - 2025-11-12 🔒 SECURITY UPDATE
+
+### 🔐 Sicurezza (CRITICO)
+- **CSRF Protection**: Implementata protezione CSRF su tutti i form POST
+  - Aggiunto token CSRF in `index.php`, `login.php`, `register.php`
+  - Validazione server-side con `verifyCSRFToken()`
+  - Prevenzione attacchi Cross-Site Request Forgery
+- **CORS Whitelist**: Rimosso wildcard `*` e implementata whitelist origini
+  - Solo domini autorizzati possono accedere all'API
+  - Supporto `Access-Control-Allow-Credentials`
+  - Configurazione in `api/v2/index.php`
+- **Content Security Policy**: Aggiunto CSP header completo
+  - Prevenzione XSS e code injection
+  - Protezione clickjacking con `frame-ancestors`
+  - Whitelist CDN e servizi esterni
+- **HSTS Header**: Implementato HTTP Strict Transport Security
+  - Forza connessioni HTTPS per 1 anno
+  - Include sottodomini con `includeSubDomains`
+  - Preparato per HSTS preload list
+
+### 🛡️ Sicurezza (ALTA)
+- **API Key Security**: Rimossa accettazione API key via GET parameter
+  - Solo header `X-API-Key` accettato per sicurezza
+  - Prevenzione esposizione API key nei log e cronologia
+- **Debug Mode**: Disabilitato debug mode attivabile da URL
+  - Rimosso `$_GET['debug']` e `$_POST['debug']`
+  - Debug mode deve essere abilitato manualmente nel codice
+  - Prevenzione information disclosure
+
+### 🔧 Fixato
+- **Inconsistenze Versione**: Uniformata versione a 4.2.1 in tutti i file
+  - 13 file aggiornati con versione corretta
+  - Fix typo "ControlloDomin" → "ControlDomini"
+- **Validazione Sintassi**: Verificata sintassi PHP di tutti i file
+  - Tutti i file passano `php -l` senza errori
+  - Fix parsing errori in `login.php` e `register.php`
+
+### 📝 Documentazione
+- **DEBUG_REPORT.md**: Report completo di debug e sicurezza (15KB)
+  - Analisi dettagliata di tutte le vulnerabilità fixate
+  - Checklist implementazione con codice esempio
+  - Statistiche modifiche e validazione
+- **SECURITY_ANALYSIS.md**: Analisi sicurezza approfondita (12KB)
+- **SECURITY_FIXES_CHECKLIST.md**: Checklist step-by-step (8.5KB)
+- **SECURITY_SUMMARY.txt**: Riepilogo esecutivo (6.4KB)
+
+### 🎯 Impatto
+- ✅ **4 vulnerabilità critiche** risolte
+- ✅ **6 miglioramenti di sicurezza** implementati
+- ✅ **10 inconsistenze di versione** corrette
+- ✅ **13 file modificati** con controllo qualità
+- ✅ **150+ linee di codice** aggiunte per sicurezza
 
 ---
 

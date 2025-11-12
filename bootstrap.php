@@ -1,9 +1,9 @@
 <?php
 /**
  * Bootstrap file - Inizializzazione comune per tutte le pagine
- * 
+ *
  * @author G Tech Group
- * @version 4.0
+ * @version 4.2.1
  */
 
 // Definisci la root del progetto

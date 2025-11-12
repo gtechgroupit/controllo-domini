@@ -1,9 +1,9 @@
 <?php
 /**
  * Controllo DNS - Analisi dettagliata record DNS
- * 
+ *
  * @author G Tech Group
- * @version 4.0
+ * @version 4.2.1
  */
 
 // Carica bootstrap

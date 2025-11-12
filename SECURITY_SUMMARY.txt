@@ -1,0 +1,171 @@
+================================================================================
+           ANALISI SICUREZZA - CONTROLLO DOMINI v4.2.1
+================================================================================
+Data: 2025-11-12
+Versione: 4.2.1
+Gravità Complessiva: MEDIA-ALTA
+
+================================================================================
+PROBLEMI CRITICI IDENTIFICATI
+================================================================================
+
+1. CSRF PROTECTION (CROSS-SITE REQUEST FORGERY) - CRITICO
+   ├─ Funzioni CSRF esistono ma NON UTILIZZATE
+   ├─ File interessati: index.php, login.php, register.php
+   ├─ Azione: Aggiungere token CSRF a tutti i form POST
+   └─ Tempo stimato: 2-3 ore
+   
+2. CORS CONFIGURATION - CRITICO
+   ├─ File: api/v2/index.php (linea 13)
+   ├─ Problema: Access-Control-Allow-Origin: * (wildcard)
+   ├─ Azione: Whitelist solo domini autorizzati
+   └─ Tempo stimato: 30 minuti
+
+3. API KEY SECURITY - CRITICO
+   ├─ File: api/v2/index.php (linea 80)
+   ├─ Problema: API key accettata da URL (GET parameter)
+   ├─ Rischio: Esposizione nei log, history, CDN
+   ├─ Azione: Usare SOLO header Authorization
+   └─ Tempo stimato: 1 ora
+
+4. MISSING CSP HEADER - CRITICO
+   ├─ Protezione XSS assente
+   ├─ File: config/config.php
+   ├─ Azione: Implementare Content-Security-Policy header
+   └─ Tempo stimato: 1 ora
+
+================================================================================
+PROBLEMI IMPORTANTI
+================================================================================
+
+5. DEBUG MODE CONTROLLABILE - MEDIO-ALTO
+   ├─ File: config/config.php (linea 169)
+   ├─ Problema: ?debug=1 abilita debug mode
+   ├─ Azione: Configurare solo via environment variable
+   └─ Tempo stimato: 30 minuti
+
+6. MISSING HSTS HEADER - MEDIO
+   ├─ Mancanza: Strict-Transport-Security
+   ├─ Effetto: Non forza HTTPS
+   ├─ Azione: Aggiungere HSTS header
+   └─ Tempo stimato: 15 minuti
+
+7. INPUT VALIDATION - MEDIO
+   ├─ File: login.php, register.php
+   ├─ Problema: Mancanza validation lunghezza input
+   ├─ Azione: Aggiungere max/min length check
+   └─ Tempo stimato: 1-2 ore
+
+8. SESSION SAMESITE - MEDIO
+   ├─ File: includes/auth.php (linea 34)
+   ├─ Problema: SameSite=Lax (dovrebbe essere Strict)
+   ├─ Azione: Cambiare a Strict
+   └─ Tempo stimato: 15 minuti
+
+================================================================================
+PROBLEMI MINORI
+================================================================================
+
+9. INFORMAZIONI SENSIBILI NEI LOG - BASSO
+   ├─ File: includes/auth.php (linee 635-645)
+   ├─ Problema: Token completi nei log
+   └─ Azione: Non loggare dati sensibili
+
+10. 2FA SENZA BACKUP CODES - BASSO
+    ├─ File: includes/auth.php
+    ├─ Problema: Nessun fallback se dispositivo perso
+    └─ Azione: Aggiungere backup codes
+
+================================================================================
+ASPETTI POSITIVI
+================================================================================
+
+✓ Database: Usa PDO con prepared statements (NO SQL injection risk)
+✓ Passwords: BCRYPT con cost 12 (strong hashing)
+✓ Session: Regeneration ogni 30 minuti
+✓ Cookies: HttpOnly + Secure flags impostati
+✓ Output: htmlspecialchars() utilizzato appropriatamente
+✓ Headers: X-Frame-Options + X-Content-Type-Options presenti
+
+================================================================================
+TIMELINE DI IMPLEMENTAZIONE CONSIGLIATA
+================================================================================
+
+URGENTE (72 ORE - ENTRO MERCOLEDI)
+├─ CSRF Token Implementation [2-3 ore]
+├─ CORS Configuration Fix [0.5 ore]
+├─ API Key Migration [1 ora]
+└─ CSP Header Implementation [1 ora]
+Total: ~5.5 ore
+
+IMPORTANTE (1 SETTIMANA)
+├─ HSTS Header [0.25 ore]
+├─ DEBUG_MODE Fix [0.5 ore]
+├─ Input Validation [1-2 ore]
+└─ SameSite Update [0.25 ore]
+Total: ~2-3 ore
+
+MEDIUM (1 MESE)
+├─ Rate Limiting [2-3 ore]
+├─ Log Cleanup [0.5 ore]
+└─ Backup Codes 2FA [3-4 ore]
+Total: ~6-7 ore
+
+================================================================================
+FILE DOCUMENTI DI SUPPORTO
+================================================================================
+
+1. SECURITY_ANALYSIS.md (12 KB)
+   └─ Analisi dettagliata di ogni vulnerabilità
+      con esempi di codice
+
+2. SECURITY_FIXES_CHECKLIST.md (15 KB)
+   └─ Checklist completa di implementazione
+      con istruzioni step-by-step
+
+3. SECURITY_SUMMARY.txt (questo file)
+   └─ Riepilogo esecutivo
+
+================================================================================
+COMANDI TEST VELOCE
+================================================================================
+
+Test CSRF (dovrebbe fallire):
+  curl -X POST http://localhost/index.php -d "domain=example.com"
+
+Test CORS (non dovrebbe avere header):
+  curl -H "Origin: http://evil.com" http://localhost/api/v2/index.php
+
+Test API Key sicurezza:
+  curl "http://localhost/api/v2/index.php?api_key=exposed" # FALLISCE
+  curl -H "Authorization: Bearer KEY" http://localhost/api/v2/index.php # OK
+
+Test Headers:
+  curl -I http://localhost/ | grep -i "content-security-policy"
+  curl -I http://localhost/ | grep -i "strict-transport-security"
+
+================================================================================
+CONTATTI E ESCALATION
+================================================================================
+
+In caso di problemi durante l'implementazione:
+- Consultare SECURITY_ANALYSIS.md per dettagli tecnici
+- Usare SECURITY_FIXES_CHECKLIST.md per istruzioni step-by-step
+- Vedere la sezione "Rollback Plan" se si riscontrano errori
+
+Per vulnerabilità critiche scoperte dopo questo report:
+- Email: security@controllodomini.it
+- Responsabile: Security Team
+
+================================================================================
+DISCLAIMER
+================================================================================
+
+Questo report rappresenta l'analisi della sicurezza ad una data specifica.
+Le vulnerabilità potrebbero evolvere con nuove versioni di software/framework.
+Raccomandazione: ripetere l'analisi ogni 6 mesi o dopo aggiornamenti importanti.
+
+OWASP Reference: Top 10 2021
+Standards: NIST, ISO 27001
+
+================================================================================
