@@ -1,0 +1,586 @@
+/**
+ * Enhancements Styles - Controllo Domini v4.2.1
+ *
+ * Styles for:
+ * - Lazy loading images
+ * - Toast notifications
+ * - Keyboard shortcuts modal
+ * - Touch gesture feedback
+ * - Loading states
+ *
+ * @package ControlDomini
+ * @version 4.2.1
+ */
+
+/* ========================================
+   1. LAZY LOADING IMAGES
+   ======================================== */
+
+img[data-src] {
+    opacity: 0;
+    transition: opacity 0.3s ease-in;
+}
+
+img.lazy-loaded {
+    opacity: 1;
+}
+
+/* Blur placeholder for lazy images */
+img[data-src]:not(.lazy-loaded) {
+    filter: blur(10px);
+    transform: scale(1.05);
+}
+
+/* ========================================
+   2. TOAST NOTIFICATIONS
+   ======================================== */
+
+.error-toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    min-width: 320px;
+    max-width: 500px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15),
+                0 4px 12px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: flex-start;
+    padding: 16px;
+    gap: 12px;
+    transform: translateX(calc(100% + 40px));
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 10000;
+    pointer-events: auto;
+}
+
+.error-toast.toast-visible {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.error-toast.toast-hiding {
+    transform: translateX(calc(100% + 40px));
+    opacity: 0;
+}
+
+/* Toast variants */
+.error-toast-error {
+    border-left: 4px solid #dc3545;
+}
+
+.error-toast-warning {
+    border-left: 4px solid #ffc107;
+}
+
+.error-toast-success {
+    border-left: 4px solid #28a745;
+}
+
+.error-toast-info {
+    border-left: 4px solid #17a2b8;
+}
+
+.toast-icon {
+    font-size: 24px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.toast-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.toast-message {
+    color: #333;
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 8px;
+}
+
+.toast-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.toast-btn {
+    padding: 6px 16px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.toast-btn:hover {
+    background: #0056b3;
+}
+
+.toast-btn:active {
+    transform: scale(0.95);
+}
+
+.toast-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #999;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    line-height: 1;
+    flex-shrink: 0;
+    transition: color 0.2s;
+}
+
+.toast-close:hover {
+    color: #333;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .error-toast {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        min-width: auto;
+        max-width: none;
+    }
+}
+
+/* ========================================
+   3. KEYBOARD SHORTCUTS MODAL
+   ======================================== */
+
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.modal.modal-visible {
+    opacity: 1;
+}
+
+.modal.modal-hiding {
+    opacity: 0;
+}
+
+.modal-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    cursor: pointer;
+}
+
+.modal-content {
+    position: relative;
+    background: white;
+    border-radius: 16px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    transform: scale(0.9);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modal.modal-visible .modal-content {
+    transform: scale(1);
+}
+
+.modal-header {
+    padding: 24px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 24px;
+    color: #333;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 32px;
+    color: #999;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.modal-close:hover {
+    color: #333;
+}
+
+.modal-body {
+    padding: 24px;
+    overflow-y: auto;
+    max-height: calc(80vh - 100px);
+}
+
+/* Keyboard shortcuts table */
+.shortcuts-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.shortcuts-table tr {
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.shortcuts-table tr:last-child {
+    border-bottom: none;
+}
+
+.shortcuts-table td {
+    padding: 16px 8px;
+    vertical-align: middle;
+}
+
+.shortcuts-table td:first-child {
+    width: 180px;
+    font-weight: 500;
+}
+
+kbd {
+    display: inline-block;
+    padding: 4px 8px;
+    background: linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%);
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.1);
+    font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
+    color: #495057;
+    min-width: 24px;
+    text-align: center;
+}
+
+kbd + kbd {
+    margin-left: 4px;
+}
+
+/* ========================================
+   4. TOUCH GESTURE FEEDBACK
+   ======================================== */
+
+.touch-ripple {
+    position: fixed;
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: rgba(0, 123, 255, 0.3);
+    pointer-events: none;
+    transform: scale(0);
+    animation: ripple 0.6s ease-out;
+    z-index: 9998;
+}
+
+@keyframes ripple {
+    to {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
+
+/* Swipe indicator */
+.swipe-indicator {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 48px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 9997;
+    pointer-events: none;
+}
+
+.swipe-indicator.left {
+    left: 20px;
+}
+
+.swipe-indicator.right {
+    right: 20px;
+}
+
+.swipe-indicator.active {
+    opacity: 0.5;
+}
+
+/* ========================================
+   5. LOADING STATES
+   ======================================== */
+
+/* Skeleton loader */
+.skeleton {
+    background: linear-gradient(
+        90deg,
+        #f0f0f0 0%,
+        #f8f8f8 50%,
+        #f0f0f0 100%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.5s ease-in-out infinite;
+    border-radius: 4px;
+}
+
+@keyframes skeleton-loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.skeleton-text {
+    height: 16px;
+    margin-bottom: 8px;
+}
+
+.skeleton-title {
+    height: 24px;
+    width: 60%;
+    margin-bottom: 16px;
+}
+
+.skeleton-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+}
+
+/* Shimmer effect */
+.shimmer {
+    position: relative;
+    overflow: hidden;
+}
+
+.shimmer::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.4),
+        transparent
+    );
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    100% {
+        left: 100%;
+    }
+}
+
+/* ========================================
+   6. PROGRESS INDICATORS
+   ======================================== */
+
+/* Linear progress bar */
+.progress-bar {
+    width: 100%;
+    height: 4px;
+    background: #e9ecef;
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #007bff, #0056b3);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.progress-bar-indeterminate {
+    position: relative;
+    background: #e9ecef;
+    overflow: hidden;
+}
+
+.progress-bar-indeterminate::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -50%;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, #007bff, transparent);
+    animation: progress-indeterminate 1.5s infinite;
+}
+
+@keyframes progress-indeterminate {
+    0% {
+        left: -50%;
+    }
+    100% {
+        left: 100%;
+    }
+}
+
+/* Circular progress spinner */
+.spinner-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.spinner-circular {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f0f0f0;
+    border-top-color: #007bff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ========================================
+   7. UTILITY CLASSES
+   ======================================== */
+
+/* Focus visible for keyboard navigation */
+:focus-visible {
+    outline: 2px solid #007bff;
+    outline-offset: 2px;
+}
+
+/* Reduced motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Print styles */
+@media print {
+    .error-toast,
+    .modal,
+    .swipe-indicator {
+        display: none !important;
+    }
+}
+
+/* ========================================
+   8. DARK MODE SUPPORT
+   ======================================== */
+
+@media (prefers-color-scheme: dark) {
+    .error-toast {
+        background: #2d2d2d;
+        color: #e0e0e0;
+    }
+
+    .toast-message {
+        color: #e0e0e0;
+    }
+
+    .modal-content {
+        background: #2d2d2d;
+        color: #e0e0e0;
+    }
+
+    .modal-header {
+        border-bottom-color: #444;
+    }
+
+    .modal-header h2 {
+        color: #e0e0e0;
+    }
+
+    .shortcuts-table tr {
+        border-bottom-color: #444;
+    }
+
+    kbd {
+        background: linear-gradient(180deg, #3a3a3a 0%, #2d2d2d 100%);
+        border-color: #555;
+        color: #e0e0e0;
+    }
+
+    .skeleton {
+        background: linear-gradient(
+            90deg,
+            #2d2d2d 0%,
+            #3a3a3a 50%,
+            #2d2d2d 100%
+        );
+    }
+
+    .progress-bar {
+        background: #3a3a3a;
+    }
+
+    .spinner-circular {
+        border-color: #3a3a3a;
+        border-top-color: #007bff;
+    }
+}
+
+/* ========================================
+   9. HIGH CONTRAST MODE
+   ======================================== */
+
+@media (prefers-contrast: high) {
+    .error-toast {
+        border: 2px solid currentColor;
+    }
+
+    .toast-btn {
+        border: 2px solid currentColor;
+    }
+
+    .modal-content {
+        border: 2px solid currentColor;
+    }
+
+    kbd {
+        border: 2px solid currentColor;
+    }
+}

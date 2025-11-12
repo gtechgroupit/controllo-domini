@@ -130,6 +130,7 @@ $breadcrumb_data = getBreadcrumb(isset($page_name) ? $page_name : 'Home');
     ?>
     <link href="<?php echo $css_file; ?>?v=<?php echo $css_version; ?>" rel="stylesheet" type="text/css">
     <link href="<?php echo $modern_css_file; ?>?v=<?php echo $modern_css_version; ?>" rel="stylesheet" type="text/css">
+    <link href="/assets/css/enhancements.css?v=<?php echo $css_version; ?>" rel="stylesheet" type="text/css">
 
     <!-- CSS Libraries -->
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
