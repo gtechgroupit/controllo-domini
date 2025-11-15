@@ -196,8 +196,10 @@ $assets_version = defined('APP_VERSION') ? APP_VERSION : '4.0';
     
     <!-- Modal Container -->
     <div id="modalContainer"></div>
-    
+
     <!-- Scripts - PERCORSO SEMPLIFICATO -->
+    <!-- Logger utility (caricato per primo) -->
+    <script src="/assets/js/logger.js?v=<?php echo $assets_version; ?>"></script>
     <script src="/assets/js/main.js?v=<?php echo $assets_version; ?>"></script>
     <script src="/assets/js/modern-ui.js?v=<?php echo $assets_version; ?>"></script>
 

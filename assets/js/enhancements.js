@@ -55,8 +55,6 @@
             document.querySelectorAll('img[data-src], img[data-srcset]').forEach(img => {
                 imageObserver.observe(img);
             });
-
-            console.log('✅ Lazy loading initialized');
         } else {
             // Fallback for browsers without IntersectionObserver
             document.querySelectorAll('img[data-src]').forEach(img => {
@@ -154,7 +152,6 @@
                 return await fn();
             } catch (error) {
                 if (retries > 0) {
-                    console.log(`Retrying... (${this.maxRetries - retries + 1}/${this.maxRetries})`);
                     await this.delay(this.retryDelay * (this.maxRetries - retries + 1));
                     return this.retryRequest(fn, retries - 1);
                 }
@@ -269,8 +266,6 @@
                     handler(e);
                 }
             });
-
-            console.log('⌨️ Keyboard shortcuts enabled (Press ? for help)');
         },
 
         getKeyCombo(e) {
@@ -389,8 +384,6 @@
                 touchEndY = e.changedTouches[0].screenY;
                 this.handleGesture();
             }, { passive: true });
-
-            console.log('👆 Touch gestures enabled');
         },
 
         handleGesture() {
@@ -418,7 +411,7 @@
 
         onSwipeLeft() {
             // Navigate forward if history available
-            console.log('Swipe left detected');
+            // Could implement tab navigation or similar
         },
 
         onSwipeRight() {
