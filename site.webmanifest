@@ -1,28 +1,33 @@
 {
-    "name": "Controllo Domini",
-    "short_name": "DNS Check",
-    "description": "Strumento professionale per l'analisi completa di domini, DNS, WHOIS e blacklist",
+    "name": "Controllo Domini - Analisi DNS e WHOIS Professionale",
+    "short_name": "ControlDomini",
+    "description": "Strumento professionale gratuito per l'analisi completa di domini: DNS, WHOIS, SSL, Blacklist e sicurezza",
     "start_url": "/",
+    "scope": "/",
     "display": "standalone",
-    "background_color": "#f8f9fa",
-    "theme_color": "#5d8ecf",
     "orientation": "portrait-primary",
+    "theme_color": "#5d8ecf",
+    "background_color": "#ffffff",
+    "lang": "it-IT",
+    "dir": "ltr",
+    "categories": [
+        "business",
+        "productivity",
+        "utilities"
+    ],
     "icons": [
         {
-            "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' fill='%235d8ecf'/%3E%3Ctext x='96' y='120' font-family='Arial' font-size='80' font-weight='bold' fill='white' text-anchor='middle'%3ECD%3C/text%3E%3C/svg%3E",
+            "src": "/assets/images/icon-192.png",
             "sizes": "192x192",
-            "type": "image/svg+xml",
-            "purpose": "any maskable"
+            "type": "image/png",
+            "purpose": "any"
         },
         {
-            "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%235d8ecf'/%3E%3Ctext x='256' y='300' font-family='Arial' font-size='200' font-weight='bold' fill='white' text-anchor='middle'%3ECD%3C/text%3E%3C/svg%3E",
+            "src": "/assets/images/icon-512.png",
             "sizes": "512x512",
-            "type": "image/svg+xml",
+            "type": "image/png",
             "purpose": "any maskable"
         }
     ],
-    "categories": ["utilities", "productivity"],
-    "lang": "it-IT",
-    "dir": "ltr",
     "prefer_related_applications": false
 }

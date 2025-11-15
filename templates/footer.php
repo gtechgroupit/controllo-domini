@@ -540,5 +540,7 @@ $assets_version = defined('APP_VERSION') ? APP_VERSION : '4.0';
         console.log('Page Load Time:', performance.now() + 'ms');
     </script>
     <?php endif; ?>
+    <!-- Advanced Enhancements -->
+    <script src="/assets/js/enhancements.js?v=<?php echo $assets_version; ?>" defer></script>
 </body>
 </html>

@@ -22,11 +22,11 @@ if (!file_exists(__DIR__ . '/../config/performance.php')) {
     // Fallback se performance.php non esiste
     function getCacheTTL($type) {
         $defaults = [
-            'dns' => 3600,
-            'whois' => 86400,
-            'blacklist' => 7200,
-            'ssl' => 86400,
-            'default' => 3600
+            'dns' => 604800,      // 7 giorni (era 3600 = 1 ora)
+            'whois' => 604800,    // 7 giorni (era 86400 = 1 giorno)
+            'blacklist' => 43200, // 12 ore (era 7200 = 2 ore)
+            'ssl' => 86400,       // 1 giorno (unchanged)
+            'default' => 3600     // 1 ora (unchanged)
         ];
         return $defaults[$type] ?? $defaults['default'];
     }

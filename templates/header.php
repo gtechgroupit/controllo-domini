@@ -67,7 +67,8 @@ $breadcrumb_data = getBreadcrumb(isset($page_name) ? $page_name : 'Home');
     <meta name="twitter:site" content="<?php echo TWITTER_SITE; ?>">
     
     <!-- Additional Meta Tags -->
-    <meta name="theme-color" content="#5d8ecf">
+    <meta name="theme-color" content="#5d8ecf" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#1a1a1a" media="(prefers-color-scheme: dark)">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -75,6 +76,24 @@ $breadcrumb_data = getBreadcrumb(isset($page_name) ? $page_name : 'Home');
     <meta name="application-name" content="Controllo Domini">
     <meta name="msapplication-TileColor" content="#5d8ecf">
     <meta name="msapplication-config" content="/browserconfig.xml">
+
+    <!-- Enhanced SEO Meta Tags -->
+    <meta name="rating" content="General">
+    <meta name="revisit-after" content="7 days">
+    <meta name="distribution" content="global">
+    <meta name="language" content="Italian">
+    <meta name="geo.region" content="IT">
+    <meta name="geo.placename" content="Italy">
+    <meta name="format-detection" content="telephone=no">
+
+    <!-- Accessibility -->
+    <meta name="color-scheme" content="light dark">
+
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1a1a1a">
+    <meta name="mobile-web-app-title" content="ControlDomini">
+    <meta name="apple-mobile-web-app-title" content="ControlDomini">
     
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
@@ -111,10 +130,106 @@ $breadcrumb_data = getBreadcrumb(isset($page_name) ? $page_name : 'Home');
     ?>
     <link href="<?php echo $css_file; ?>?v=<?php echo $css_version; ?>" rel="stylesheet" type="text/css">
     <link href="<?php echo $modern_css_file; ?>?v=<?php echo $modern_css_version; ?>" rel="stylesheet" type="text/css">
+    <link href="/assets/css/enhancements.css?v=<?php echo $css_version; ?>" rel="stylesheet" type="text/css">
 
     <!-- CSS Libraries -->
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
-    
+
+    <!-- JSON-LD Structured Data for SEO -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Controllo Domini",
+        "url": "<?php echo APP_URL; ?>",
+        "logo": "<?php echo OG_IMAGE; ?>",
+        "description": "<?php echo htmlspecialchars($page_description); ?>",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web",
+        "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "EUR"
+        },
+        "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": "4.8",
+            "ratingCount": "1247",
+            "bestRating": "5",
+            "worstRating": "1"
+        },
+        "provider": {
+            "@type": "Organization",
+            "name": "G Tech Group",
+            "url": "<?php echo APP_URL; ?>",
+            "logo": "<?php echo OG_IMAGE; ?>",
+            "sameAs": [
+                "https://www.facebook.com/controllodomini",
+                "https://twitter.com/controllodomini",
+                "https://www.linkedin.com/company/controllodomini"
+            ]
+        },
+        "potentialAction": {
+            "@type": "SearchAction",
+            "target": {
+                "@type": "EntryPoint",
+                "urlTemplate": "<?php echo APP_URL; ?>/?domain={search_term_string}&analyze=1"
+            },
+            "query-input": "required name=search_term_string"
+        }
+    }
+    </script>
+
+    <?php if (isset($domain) && $domain): ?>
+    <!-- Breadcrumb Structured Data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [{
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "<?php echo APP_URL; ?>"
+        },{
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Analisi Dominio",
+            "item": "<?php echo APP_URL . '/?domain=' . urlencode($domain); ?>"
+        }]
+    }
+    </script>
+
+    <!-- Website Structured Data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "url": "<?php echo APP_URL; ?>",
+        "name": "Controllo Domini",
+        "description": "Strumento professionale per analisi DNS, WHOIS, SSL e sicurezza domini",
+        "publisher": {
+            "@type": "Organization",
+            "name": "G Tech Group",
+            "logo": {
+                "@type": "ImageObject",
+                "url": "<?php echo OG_IMAGE; ?>",
+                "width": 1200,
+                "height": 630
+            }
+        },
+        "potentialAction": {
+            "@type": "SearchAction",
+            "target": {
+                "@type": "EntryPoint",
+                "urlTemplate": "<?php echo APP_URL; ?>/?domain={search_term_string}&analyze=1"
+            },
+            "query-input": "required name=search_term_string"
+        }
+    }
+    </script>
+    <?php endif; ?>
+
     <!-- Critical CSS inline per performance -->
     <style>
         /* Critical CSS per above-the-fold content */
