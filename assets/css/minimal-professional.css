@@ -1,0 +1,741 @@
+/**
+ * Controllo Domini - Minimal Professional Design
+ * Version: 5.0.0
+ * Modern, Clean, Professional Interface
+ */
+
+/* ==========================================
+   1. CSS VARIABLES - MINIMAL PALETTE
+   ========================================== */
+:root {
+    /* Professional Color Palette */
+    --color-primary: #2563eb;
+    --color-primary-dark: #1e40af;
+    --color-primary-light: #3b82f6;
+
+    /* Neutral Grays - Clean & Professional */
+    --color-white: #ffffff;
+    --color-gray-50: #f9fafb;
+    --color-gray-100: #f3f4f6;
+    --color-gray-200: #e5e7eb;
+    --color-gray-300: #d1d5db;
+    --color-gray-400: #9ca3af;
+    --color-gray-500: #6b7280;
+    --color-gray-600: #4b5563;
+    --color-gray-700: #374151;
+    --color-gray-800: #1f2937;
+    --color-gray-900: #111827;
+
+    /* Semantic Colors */
+    --color-success: #10b981;
+    --color-warning: #f59e0b;
+    --color-error: #ef4444;
+    --color-info: #3b82f6;
+
+    /* Typography */
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-mono: 'SF Mono', 'Cascadia Code', 'Courier New', monospace;
+
+    /* Spacing System - 4px base */
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-5: 1.25rem;
+    --space-6: 1.5rem;
+    --space-8: 2rem;
+    --space-10: 2.5rem;
+    --space-12: 3rem;
+    --space-16: 4rem;
+    --space-20: 5rem;
+
+    /* Border Radius - Subtle */
+    --radius-sm: 0.375rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+    --radius-xl: 1rem;
+
+    /* Shadows - Minimal & Professional */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+
+    /* Transitions */
+    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ==========================================
+   2. RESET & BASE
+   ========================================== */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--color-gray-800);
+    background-color: var(--color-gray-50);
+    min-height: 100vh;
+}
+
+/* ==========================================
+   3. TYPOGRAPHY - CLEAN & READABLE
+   ========================================== */
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--color-gray-900);
+    margin-bottom: var(--space-4);
+}
+
+h1 { font-size: 2.5rem; }
+h2 { font-size: 2rem; }
+h3 { font-size: 1.5rem; }
+h4 { font-size: 1.25rem; }
+h5 { font-size: 1.125rem; }
+h6 { font-size: 1rem; }
+
+p {
+    margin-bottom: var(--space-4);
+    color: var(--color-gray-600);
+}
+
+a {
+    color: var(--color-primary);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+a:hover {
+    color: var(--color-primary-dark);
+}
+
+/* ==========================================
+   4. LAYOUT - CLEAN CONTAINER
+   ========================================== */
+.container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 var(--space-6);
+}
+
+.section {
+    padding: var(--space-16) 0;
+}
+
+/* ==========================================
+   5. NAVIGATION - MINIMAL & CLEAN
+   ========================================== */
+nav {
+    background: var(--color-white);
+    border-bottom: 1px solid var(--color-gray-200);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.nav-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-4) 0;
+}
+
+.logo {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--color-gray-900);
+}
+
+.nav-links {
+    display: flex;
+    gap: var(--space-8);
+    align-items: center;
+    list-style: none;
+}
+
+.nav-links a {
+    color: var(--color-gray-600);
+    font-weight: 500;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+}
+
+.nav-links a:hover,
+.nav-links a.active {
+    color: var(--color-primary);
+    background-color: var(--color-gray-100);
+}
+
+/* ==========================================
+   6. FORM - PROFESSIONAL & CLEAN
+   ========================================== */
+.form-section {
+    padding: var(--space-20) 0;
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+}
+
+.form-card {
+    background: var(--color-white);
+    border-radius: var(--radius-xl);
+    padding: var(--space-10);
+    box-shadow: var(--shadow-xl);
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+.form-label {
+    display: block;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--color-gray-700);
+    margin-bottom: var(--space-4);
+    text-align: center;
+}
+
+.input-group {
+    display: flex;
+    gap: var(--space-3);
+    align-items: stretch;
+}
+
+.input-icon {
+    position: absolute;
+    left: var(--space-4);
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.5rem;
+    color: var(--color-gray-400);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.form-input {
+    flex: 1;
+    padding: var(--space-4) var(--space-4) var(--space-4) 3.5rem;
+    font-size: 1rem;
+    border: 2px solid var(--color-gray-300);
+    border-radius: var(--radius-lg);
+    background: var(--color-white);
+    transition: all var(--transition-base);
+    outline: none;
+    font-family: var(--font-sans);
+}
+
+.form-input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.form-input::placeholder {
+    color: var(--color-gray-400);
+}
+
+/* ==========================================
+   7. BUTTONS - MINIMAL & PROFESSIONAL
+   ========================================== */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: var(--space-4) var(--space-6);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1;
+    border: none;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all var(--transition-base);
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.btn-primary {
+    background-color: var(--color-primary);
+    color: var(--color-white);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-primary:hover {
+    background-color: var(--color-primary-dark);
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-1px);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+.btn-secondary {
+    background-color: var(--color-gray-200);
+    color: var(--color-gray-700);
+}
+
+.btn-secondary:hover {
+    background-color: var(--color-gray-300);
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+/* ==========================================
+   8. CARDS - CLEAN & PROFESSIONAL
+   ========================================== */
+.card {
+    background: var(--color-white);
+    border: 1px solid var(--color-gray-200);
+    border-radius: var(--radius-lg);
+    padding: var(--space-6);
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-base);
+}
+
+.card:hover {
+    border-color: var(--color-gray-300);
+    box-shadow: var(--shadow-md);
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding-bottom: var(--space-4);
+    margin-bottom: var(--space-4);
+    border-bottom: 1px solid var(--color-gray-200);
+}
+
+.card-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--color-gray-900);
+    margin: 0;
+}
+
+/* ==========================================
+   9. STATISTICS - MINIMAL GRID
+   ========================================== */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--space-6);
+    margin: var(--space-8) 0;
+}
+
+.stat-card {
+    background: var(--color-white);
+    border: 1px solid var(--color-gray-200);
+    border-radius: var(--radius-lg);
+    padding: var(--space-6);
+    text-align: center;
+    transition: all var(--transition-base);
+}
+
+.stat-card:hover {
+    border-color: var(--color-primary);
+    box-shadow: var(--shadow-md);
+}
+
+.stat-icon {
+    font-size: 2rem;
+    margin-bottom: var(--space-3);
+}
+
+.stat-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--color-gray-900);
+    display: block;
+    margin-bottom: var(--space-2);
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-gray-600);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* ==========================================
+   10. HEALTH SCORE - PROFESSIONAL CIRCLE
+   ========================================== */
+.health-overview {
+    background: var(--color-white);
+    border: 1px solid var(--color-gray-200);
+    border-radius: var(--radius-xl);
+    padding: var(--space-10);
+    margin-bottom: var(--space-8);
+    text-align: center;
+    box-shadow: var(--shadow-md);
+}
+
+.health-score-circle {
+    width: 200px;
+    height: 200px;
+    margin: var(--space-6) auto;
+    position: relative;
+}
+
+.health-score-circle svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.score-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+.score-value {
+    font-size: 3rem;
+    font-weight: 900;
+    color: var(--color-primary);
+    display: block;
+    line-height: 1;
+}
+
+.score-label {
+    font-size: 1rem;
+    color: var(--color-gray-500);
+    font-weight: 500;
+}
+
+.health-status {
+    display: inline-block;
+    padding: var(--space-2) var(--space-6);
+    border-radius: var(--radius-lg);
+    font-weight: 600;
+    margin-top: var(--space-4);
+}
+
+.health-excellent {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+.health-good {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+.health-fair {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.health-poor {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+/* ==========================================
+   11. ALERTS - CLEAN NOTIFICATIONS
+   ========================================== */
+.alert {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-5);
+    border-radius: var(--radius-lg);
+    margin: var(--space-4) 0;
+    border-left: 4px solid;
+}
+
+.alert-success {
+    background-color: #d1fae5;
+    border-color: var(--color-success);
+    color: #065f46;
+}
+
+.alert-error {
+    background-color: #fee2e2;
+    border-color: var(--color-error);
+    color: #991b1b;
+}
+
+.alert-warning {
+    background-color: #fef3c7;
+    border-color: var(--color-warning);
+    color: #92400e;
+}
+
+.alert-info {
+    background-color: #dbeafe;
+    border-color: var(--color-info);
+    color: #1e40af;
+}
+
+.alert-icon {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+/* ==========================================
+   12. TABLES - CLEAN DATA PRESENTATION
+   ========================================== */
+.dns-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.dns-table th {
+    background-color: var(--color-gray-100);
+    color: var(--color-gray-700);
+    font-weight: 600;
+    text-align: left;
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 2px solid var(--color-gray-300);
+}
+
+.dns-table td {
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--color-gray-200);
+    color: var(--color-gray-800);
+}
+
+.dns-table tbody tr:hover {
+    background-color: var(--color-gray-50);
+}
+
+.dns-table code {
+    font-family: var(--font-mono);
+    background-color: var(--color-gray-100);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    color: var(--color-gray-800);
+}
+
+/* ==========================================
+   13. BADGES - MINIMAL STATUS INDICATORS
+   ========================================== */
+.badge {
+    display: inline-block;
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.badge-success {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+.badge-error {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.badge-warning {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.badge-info {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+.badge-primary {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+/* ==========================================
+   14. QUICK EXAMPLES - CLEAN PILLS
+   ========================================== */
+.quick-examples {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin-top: var(--space-6);
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--color-gray-200);
+}
+
+.quick-examples span {
+    color: var(--color-gray-600);
+    font-weight: 500;
+}
+
+.example-link {
+    padding: var(--space-2) var(--space-4);
+    background-color: var(--color-gray-100);
+    border: 1px solid var(--color-gray-300);
+    border-radius: var(--radius-md);
+    color: var(--color-gray-700);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.example-link:hover {
+    background-color: var(--color-primary);
+    color: var(--color-white);
+    border-color: var(--color-primary);
+}
+
+/* ==========================================
+   15. RESPONSIVE - MOBILE FIRST
+   ========================================== */
+@media (max-width: 768px) {
+    h1 { font-size: 2rem; }
+    h2 { font-size: 1.5rem; }
+
+    .container {
+        padding: 0 var(--space-4);
+    }
+
+    .section {
+        padding: var(--space-12) 0;
+    }
+
+    .form-card {
+        padding: var(--space-6);
+    }
+
+    .input-group {
+        flex-direction: column;
+    }
+
+    .nav-links {
+        gap: var(--space-4);
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .health-score-circle {
+        width: 160px;
+        height: 160px;
+    }
+
+    .score-value {
+        font-size: 2.5rem;
+    }
+}
+
+/* ==========================================
+   16. UTILITIES - HELPFUL CLASSES
+   ========================================== */
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+
+.font-bold { font-weight: 700; }
+.font-semibold { font-weight: 600; }
+.font-medium { font-weight: 500; }
+
+.text-primary { color: var(--color-primary); }
+.text-success { color: var(--color-success); }
+.text-warning { color: var(--color-warning); }
+.text-error { color: var(--color-error); }
+.text-gray { color: var(--color-gray-600); }
+
+.mt-4 { margin-top: var(--space-4); }
+.mt-6 { margin-top: var(--space-6); }
+.mt-8 { margin-top: var(--space-8); }
+
+.mb-4 { margin-bottom: var(--space-4); }
+.mb-6 { margin-bottom: var(--space-6); }
+.mb-8 { margin-bottom: var(--space-8); }
+
+.shadow-sm { box-shadow: var(--shadow-sm); }
+.shadow-md { box-shadow: var(--shadow-md); }
+.shadow-lg { box-shadow: var(--shadow-lg); }
+
+.rounded { border-radius: var(--radius-md); }
+.rounded-lg { border-radius: var(--radius-lg); }
+.rounded-xl { border-radius: var(--radius-xl); }
+
+/* ==========================================
+   17. ANIMATIONS - SUBTLE & PROFESSIONAL
+   ========================================== */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease;
+}
+
+.slide-up {
+    animation: slideUp 0.6s ease;
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* ==========================================
+   18. PRINT STYLES
+   ========================================== */
+@media print {
+    nav,
+    .form-section,
+    .quick-examples,
+    .btn {
+        display: none;
+    }
+
+    body {
+        background: white;
+    }
+
+    .card {
+        border: 1px solid #ddd;
+        box-shadow: none;
+        page-break-inside: avoid;
+    }
+}

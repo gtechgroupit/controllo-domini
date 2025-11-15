@@ -64,20 +64,18 @@
      * Inizializza l'applicazione
      */
     function init() {
-        console.log('🚀 Controllo Domini v4.0 - Initializing...');
-        
         // Cache elementi DOM
         cacheElements();
-        
+
         // Setup event listeners
         setupEventListeners();
-        
+
         // Inizializza componenti UI
         initializeComponents();
-        
+
         // Setup link esempi
         setupExampleLinks();
-        
+
         // Inizializza AOS (Animate On Scroll)
         if (typeof AOS !== 'undefined') {
             AOS.init({
@@ -87,17 +85,15 @@
                 offset: 100
             });
         }
-        
+
         // Setup analytics
         setupAnalytics();
-        
+
         // Check URL parameters
         checkUrlParameters();
-        
+
         // Setup observers
         setupIntersectionObservers();
-        
-        console.log('✅ Initialization complete');
     }
 
     /**
@@ -293,8 +289,7 @@
         
         // Controllo IDN (Internationalized Domain Names)
         if (/[^\x00-\x7F]/.test(cleanDomain)) {
-            // Per ora accettiamo IDN ma avvisiamo
-            console.log('IDN domain detected:', cleanDomain);
+            // IDN domain detected - accepted
         }
         
         return { isValid: true, cleanDomain: cleanDomain };
@@ -951,7 +946,6 @@
             
             showNotification('Copiato negli appunti!', 'success');
         } catch (err) {
-            console.error('Errore copia:', err);
             showNotification('Errore durante la copia', 'error');
         }
     }
@@ -1196,15 +1190,7 @@
                 setTimeout(() => {
                     const perfData = window.performance.timing;
                     const pageLoadTime = perfData.loadEventEnd - perfData.navigationStart;
-                    const domReadyTime = perfData.domContentLoadedEventEnd - perfData.navigationStart;
-                    const renderTime = perfData.domComplete - perfData.domLoading;
-                    
-                    console.log('Performance metrics:', {
-                        pageLoad: pageLoadTime + 'ms',
-                        domReady: domReadyTime + 'ms',
-                        render: renderTime + 'ms'
-                    });
-                    
+
                     trackEvent('performance', 'page_load', 'time', pageLoadTime);
                 }, 0);
             });
@@ -1227,10 +1213,7 @@
             });
         }
         
-        // Debug in development
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-            console.log('📊 Track Event:', { category, action, label, value });
-        }
+        // Analytics tracking active
     }
 
     // ===================================
@@ -1265,7 +1248,8 @@
                 exportAsPDF();
                 break;
             default:
-                console.error('Formato export non supportato:', type);
+                showNotification('Formato export non supportato', 'error');
+                return;
         }
         
         trackEvent('export', type, state.currentDomain);
@@ -1413,7 +1397,7 @@
                 trackEvent('share', 'native', state.currentDomain);
             } catch (err) {
                 if (err.name !== 'AbortError') {
-                    console.error('Errore condivisione:', err);
+                    showNotification('Errore durante la condivisione', 'error');
                 }
             }
         } else {

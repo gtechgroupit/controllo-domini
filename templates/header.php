@@ -127,7 +127,14 @@ $breadcrumb_data = getBreadcrumb(isset($page_name) ? $page_name : 'Home');
     $modern_css_file = '/assets/css/modern-ui.css';
     $modern_css_path = ABSPATH . 'assets/css/modern-ui.css';
     $modern_css_version = file_exists($modern_css_path) ? filemtime($modern_css_path) : time();
+
+    $minimal_css_file = '/assets/css/minimal-professional.css';
+    $minimal_css_path = ABSPATH . 'assets/css/minimal-professional.css';
+    $minimal_css_version = file_exists($minimal_css_path) ? filemtime($minimal_css_path) : time();
     ?>
+    <!-- New Minimal Professional Design -->
+    <link href="<?php echo $minimal_css_file; ?>?v=<?php echo $minimal_css_version; ?>" rel="stylesheet" type="text/css">
+    <!-- Legacy CSS (for compatibility) -->
     <link href="<?php echo $css_file; ?>?v=<?php echo $css_version; ?>" rel="stylesheet" type="text/css">
     <link href="<?php echo $modern_css_file; ?>?v=<?php echo $modern_css_version; ?>" rel="stylesheet" type="text/css">
     <link href="/assets/css/enhancements.css?v=<?php echo $css_version; ?>" rel="stylesheet" type="text/css">

@@ -33,17 +33,14 @@ const STATIC_ASSETS = [
 
 // Install event - cache static assets
 self.addEventListener('install', event => {
-    console.log('Service Worker installing...');
-
     event.waitUntil(
         caches.open(STATIC_CACHE)
             .then(cache => {
-                console.log('Caching static assets');
                 // Don't fail if some assets are missing
                 return Promise.allSettled(
                     STATIC_ASSETS.map(url => {
                         return cache.add(url).catch(err => {
-                            console.warn(`Failed to cache ${url}:`, err);
+                            // Silent fail for missing assets
                         });
                     })
                 );
@@ -54,18 +51,13 @@ self.addEventListener('install', event => {
 
 // Activate event - clean up old caches
 self.addEventListener('activate', event => {
-    console.log('Service Worker activating...');
-
     event.waitUntil(
         caches.keys()
             .then(cacheNames => {
                 return Promise.all(
                     cacheNames
                         .filter(name => name !== STATIC_CACHE && name !== DYNAMIC_CACHE)
-                        .map(name => {
-                            console.log('Deleting old cache:', name);
-                            return caches.delete(name);
-                        })
+                        .map(name => caches.delete(name))
                 );
             })
             .then(() => self.clients.claim())
@@ -227,7 +219,6 @@ if ('sync' in self.registration) {
 
 async function syncAnalytics() {
     // Sync any pending analytics data when online
-    console.log('Syncing analytics data...');
     // Implementation would go here
 }
 
@@ -279,4 +270,4 @@ self.addEventListener('message', event => {
     }
 });
 
-console.log('Service Worker loaded - Controllo Domini v4.2.1');
+// Service Worker v4.2.1 loaded
